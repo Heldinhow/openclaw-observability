@@ -42,8 +42,7 @@ export async function setCachedSessions(sessions: Session[]): Promise<void> {
 
     logger.debug({ sessionCount: sessions.length }, 'Sessions cached');
   } catch (error) {
-    logger.error({ error }, 'Failed to cache sessions');
-    throw error;
+    logger.warn({ error }, 'Failed to cache sessions (Redis may be unavailable)');
   }
 }
 
@@ -59,8 +58,7 @@ export async function invalidateCache(): Promise<void> {
       logger.info({ keyCount: keys.length }, 'Cache invalidated');
     }
   } catch (error) {
-    logger.error({ error }, 'Failed to invalidate cache');
-    throw error;
+    logger.warn({ error }, 'Failed to invalidate cache (Redis may be unavailable)');
   }
 }
 

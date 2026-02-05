@@ -3,29 +3,30 @@ import { Header } from '../components/Header';
 import { SessionTable } from '../components/SessionTable';
 import { SessionDetail } from '../components/SessionDetail';
 import { Filters } from '../components/Filters';
-import { useSessions, useRefresh, useHealth } from '../hooks/useSessions';
-import type { Session, SessionFilters as Filters, SessionDetailResponse } from '../types';
+import { useSessions, useRefresh, useHealth, useSessionDetail } from '../hooks/useSessions';
+import type { Session, SessionFilters } from '../types';
 
 export function Dashboard() {
-  const [filters, setFilters] = useState<Filters>({
+  const [filters, setFilters] = useState<SessionFilters>({
     project: undefined,
     status: 'all',
   });
-  const [selectedSession, setSelectedSession] = useState<SessionDetailResponse | null>(null);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
 
   const { data: sessionsData, isLoading, error, refetch } = useSessions(filters);
   const refreshMutation = useRefresh();
   const { data: health } = useHealth();
+  const { data: selectedSession } = useSessionDetail(selectedSessionId);
 
   const handleSessionClick = useCallback((session: Session) => {
-    setSelectedSession(session as SessionDetailResponse);
+    setSelectedSessionId(session.id);
   }, []);
 
   const handleCloseDetail = useCallback(() => {
-    setSelectedSession(null);
+    setSelectedSessionId(null);
   }, []);
 
-  const handleFilterChange = useCallback((newFilters: Filters) => {
+  const handleFilterChange = useCallback((newFilters: SessionFilters) => {
     setFilters(newFilters);
   }, []);
 
