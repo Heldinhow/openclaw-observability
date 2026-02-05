@@ -1,0 +1,252 @@
+openapi: 3.0.3
+info:
+  title: OpenClaw Observability API
+  version: 1.0.0
+  description: Backend API for session observability dashboard
+
+servers:
+  - url: http://localhost:3000
+    description: Development server
+
+paths:
+  /api/sessions:
+    get:
+      summary: List all sessions
+      description: Returns all cached sessions with optional filtering
+      parameters:
+        - name: project
+          in: query
+          schema:
+            type: string
+          description: Filter by project name
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive, all]
+            default: all
+          description: Filter by session status
+        - name: refresh
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: Force cache refresh before returning
+      responses:
+        '200':
+          description: List of sessions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Session'
+                  meta:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                      cachedAt:
+                        type: string
+                        format: date-time
+
+  /api/sessions/{sessionId}:
+    get:
+      summary: Get session details
+      description: Returns full session details including conversation history
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Session UUID
+      responses:
+        '200':
+          description: Session details with messages
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionDetail'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/projects:
+    get:
+      summary: List all projects
+      description: Returns all discovered projects with session counts
+      responses:
+        '200':
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Project'
+
+  /api/health:
+    get:
+      summary: Health check
+      description: Returns cache status and discovery health
+      responses:
+        '200':
+          description: System health status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+
+  /api/refresh:
+    post:
+      summary: Force cache refresh
+      description: Triggers immediate cache invalidation and rediscovery
+      responses:
+        '200':
+          description: Refresh initiated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [started]
+
+components:
+  schemas:
+    Session:
+      type: object
+      required:
+        - id
+        - project
+        - title
+        - status
+        - lastUpdated
+        - messageCount
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        project:
+          type: string
+          example: "backend-api"
+        title:
+          type: string
+          example: "Fix authentication bug"
+        status:
+          type: string
+          enum: [active, inactive]
+          example: "active"
+        lastUpdated:
+          type: string
+          format: date-time
+          example: "2026-02-05T22:30:00Z"
+        messageCount:
+          type: integer
+          example: 47
+
+    SessionDetail:
+      type: object
+      required:
+        - id
+        - project
+        - title
+        - status
+        - lastUpdated
+        - messageCount
+        - messages
+      properties:
+        id:
+          type: string
+          format: uuid
+        project:
+          type: string
+        title:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive]
+        lastUpdated:
+          type: string
+          format: date-time
+        messageCount:
+          type: integer
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+
+    Message:
+      type: object
+      required:
+        - id
+        - role
+        - content
+        - timestamp
+      properties:
+        id:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum: [agent, user]
+        content:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    Project:
+      type: object
+      required:
+        - name
+        - path
+        - sessionCount
+      properties:
+        name:
+          type: string
+        path:
+          type: string
+        sessionCount:
+          type: integer
+
+    HealthStatus:
+      type: object
+      required:
+        - status
+        - redisConnected
+        - discoveryLatency
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded]
+        redisConnected:
+          type: boolean
+        discoveryLatency:
+          type: number
+          description: milliseconds
+        lastDiscovery:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          example: 404
+        message:
+          type: string
+          example: "Session not found"
