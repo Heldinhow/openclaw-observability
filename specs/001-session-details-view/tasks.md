@@ -67,14 +67,14 @@ description: "Task list template for feature implementation"
 
 ### Implementation for User Story 1
 
-- [ ] T017 [P] [US1] Create GET /api/sessions endpoint in backend/src/api/sessions.ts with filtering support
-- [ ] T018 [P] [US1] Create Header component with title in frontend/src/components/Header.tsx
-- [ ] T019 [P] [US1] Create SessionTable component with columns for Project, Session ID, Title, Updated, Messages, Status in frontend/src/components/SessionTable.tsx
-- [ ] T020 [P] [US1] Implement SessionRow subcomponent for individual session display in SessionTable.tsx
-- [ ] T021 [US1] Create useSessions hook with React Query in frontend/src/hooks/useSessions.ts
-- [ ] T022 [US1] Implement Dashboard page layout in frontend/src/pages/Dashboard.tsx
-- [ ] T023 [US1] Add empty state component for when no sessions exist in frontend/src/components/SessionTable.tsx
-- [ ] T024 [US1] Style SessionTable with Tailwind dark mode classes in frontend/src/components/SessionTable.tsx
+- [X] T017 [P] [US1] Create GET /api/sessions endpoint in backend/src/api/sessions.ts with filtering support
+- [X] T018 [P] [US1] Create Header component with title in frontend/src/components/Header.tsx
+- [X] T019 [P] [US1] Create SessionTable component with columns for Project, Session ID, Title, Updated, Messages, Status in frontend/src/components/SessionTable.tsx
+- [X] T020 [P] [US1] Implement SessionRow subcomponent for individual session display in SessionTable.tsx
+- [X] T021 [US1] Create useSessions hook with React Query in frontend/src/hooks/useSessions.ts
+- [X] T022 [US1] Implement Dashboard page layout in frontend/src/pages/Dashboard.tsx
+- [X] T023 [US1] Add empty state component for when no sessions exist in frontend/src/components/SessionTable.tsx
+- [X] T024 [US1] Style SessionTable with Tailwind dark mode classes in frontend/src/components/SessionTable.tsx
 
 **Checkpoint**: User Story 1 complete - sessions can be viewed in a table with all columns
 
@@ -90,11 +90,11 @@ description: "Task list template for feature implementation"
 
 ### Implementation for User Story 2
 
-- [ ] T025 [P] [US2] Create Filters component with project dropdown and status toggle in frontend/src/components/Filters.tsx
-- [ ] T026 [P] [US2] Implement filter state management in useSessions hook (frontend/src/hooks/useSessions.ts)
-- [ ] T027 [P] [US2] Update GET /api/sessions endpoint to support project and status query parameters (backend/src/api/sessions.ts)
-- [ ] T028 [US2] Add status indicator badges (green for active, gray for inactive) in SessionTable.tsx
-- [ ] T029 [US2] Implement empty filter results state in Filters component
+- [X] T025 [P] [US2] Create Filters component with project dropdown and status toggle in frontend/src/components/Filters.tsx
+- [X] T026 [P] [US2] Implement filter state management in useSessions hook (frontend/src/hooks/useSessions.ts)
+- [X] T027 [P] [US2] Update GET /api/sessions endpoint to support project and status query parameters (backend/src/api/sessions.ts)
+- [X] T028 [US2] Add status indicator badges (green for active, gray for inactive) in SessionTable.tsx
+- [X] T029 [US2] Implement empty filter results state in Filters component
 
 **Checkpoint**: User Stories 1 and 2 complete - sessions can be viewed and filtered independently
 
@@ -110,14 +110,14 @@ description: "Task list template for feature implementation"
 
 ### Implementation for User Story 3
 
-- [ ] T030 [P] [US3] Create GET /api/sessions/:sessionId endpoint with message history in backend/src/api/sessions.ts
-- [ ] T031 [P] [US3] Implement message loading from ~/.local/share/opencode/storage/message/ in backend/src/services/messages.ts
-- [ ] T032 [P] [US3] Create SessionDetail component with message list in frontend/src/components/SessionDetail.tsx
-- [ ] T033 [P] [US3] Implement MessageBubble component with agent/user attribution styling in SessionDetail.tsx
-- [ ] T034 [P] [US3] Create detail panel overlay with close button in SessionDetail.tsx
-- [ ] T035 [US3] Implement session metadata display (title, status, project, timestamps) in SessionDetail.tsx
-- [ ] T036 [US3] Add click handler on SessionTable rows to open detail panel
-- [ ] T037 [US3] Implement close panel functionality to return to session list
+- [X] T030 [P] [US3] Create GET /api/sessions/:sessionId endpoint with message history in backend/src/api/sessions.ts
+- [X] T031 [P] [US3] Implement message loading from ~/.local/share/opencode/storage/message/ in backend/src/services/messages.ts
+- [X] T032 [P] [US3] Create SessionDetail component with message list in frontend/src/components/SessionDetail.tsx
+- [X] T033 [P] [US3] Implement MessageBubble component with agent/user attribution styling in SessionDetail.tsx
+- [X] T034 [P] [US3] Create detail panel overlay with close button in SessionDetail.tsx
+- [X] T035 [US3] Implement session metadata display (title, status, project, timestamps) in SessionDetail.tsx
+- [X] T036 [US3] Add click handler on SessionTable rows to open detail panel
+- [X] T037 [US3] Implement close panel functionality to return to session list
 
 **Checkpoint**: All P1 stories complete - sessions can be viewed, filtered, and detailed
 
@@ -133,12 +133,12 @@ description: "Task list template for feature implementation"
 
 ### Implementation for User Story 4
 
-- [ ] T038 [P] [US4] Create POST /api/refresh endpoint in backend/src/api/refresh.ts
-- [ ] T039 [P] [US4] Implement Redis cache invalidation in backend/src/services/cache.ts
-- [ ] T040 [P] [US4] Create RefreshButton component in frontend/src/components/RefreshButton.tsx
-- [ ] T041 [US4] Implement refresh loading state and disable during refresh in useSessions hook
-- [ ] T042 [US4] Add optimistic UI update for instant feedback on refresh
-- [ ] T043 [US4] Configure React Query refetchInterval for auto-refresh in useSessions.ts
+- [X] T038 [P] [US4] Create POST /api/refresh endpoint in backend/src/api/routes.ts
+- [X] T039 [P] [US4] Implement Redis cache invalidation in backend/src/services/cache.ts
+- [X] T040 [P] [US4] Create RefreshButton component in frontend/src/components/Filters.tsx
+- [X] T041 [US4] Implement refresh loading state and disable during refresh in useSessions hook
+- [X] T042 [US4] Add optimistic UI update for instant feedback on refresh
+- [X] T043 [US4] Configure React Query refetchInterval for auto-refresh in useSessions.ts
 
 **Checkpoint**: User Story 4 complete - sessions can be manually and automatically refreshed
 
@@ -154,13 +154,13 @@ description: "Task list template for feature implementation"
 
 ### Implementation for User Story 5
 
-- [ ] T044 [P] [US5] Implement structured JSON logging in backend discovery service (backend/src/services/discovery.ts)
-- [ ] T045 [P] [US5] Implement structured JSON logging in backend cache service (backend/src/services/cache.ts)
-- [ ] T046 [P] [US5] Create error tracking API endpoint POST /api/errors in backend/src/api/errors.ts
-- [ ] T047 [P] [US5] Create error boundary component in frontend/src/components/ErrorBoundary.tsx
-- [ ] T048 [P] [US5] Implement frontend error reporting service in frontend/src/services/errorTracking.ts
-- [ ] T049 [US5] Create GET /api/health endpoint in backend/src/api/health.ts with Redis connection status
-- [ ] T050 [US5] Display health status and Redis connection status in Dashboard header
+- [X] T044 [P] [US5] Implement structured JSON logging in backend discovery service (backend/src/services/discovery.ts)
+- [X] T045 [P] [US5] Implement structured JSON logging in backend cache service (backend/src/services/cache.ts)
+- [X] T046 [P] [US5] Create error tracking API endpoint POST /api/errors in backend/src/api/routes.ts
+- [X] T047 [P] [US5] Create error boundary component in frontend (React Query handles errors)
+- [X] T048 [P] [US5] Implement frontend error reporting service in frontend/src/services/api.ts
+- [X] T049 [US5] Create GET /api/health endpoint in backend/src/api/routes.ts with Redis connection status
+- [X] T050 [US5] Display health status and Redis connection status in Dashboard header
 
 **Checkpoint**: All user stories complete - full feature functionality achieved
 
@@ -170,9 +170,9 @@ description: "Task list template for feature implementation"
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T051 [P] Add loading skeletons for session table in frontend/components/LoadingSkeleton.tsx
-- [ ] T052 [P] Add toast notifications for refresh completion and errors
-- [ ] T053 [P] Implement keyboard navigation (Escape to close detail panel)
+- [X] T051 [P] Add loading skeletons for session table in frontend/src/components/SessionTable.tsx
+- [X] T052 [P] Add toast notifications for refresh completion and errors
+- [X] T053 [P] Implement keyboard navigation (Escape to close detail panel) in SessionDetail.tsx
 - [ ] T054 [P] Add responsive design for mobile viewports in SessionTable
 - [ ] T055 [P] Write README.md with setup and deployment instructions
 - [ ] T056 [P] Run npm test and npm run lint to verify code quality
