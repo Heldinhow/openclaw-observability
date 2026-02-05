@@ -33,7 +33,13 @@ export function SessionDetail({ session, onClose }: SessionDetailProps) {
     const textParts = message.parts
       .filter((p) => p.type === 'text' && p.text)
       .map((p) => p.text);
-    return textParts.join('\n\n');
+    if (textParts.length > 0) {
+      return textParts.join('\n\n');
+    }
+    if (message.summary?.title) {
+      return message.summary.title;
+    }
+    return '';
   };
 
   return (
@@ -65,7 +71,13 @@ export function SessionDetail({ session, onClose }: SessionDetailProps) {
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {session.messages.map((message) => (
+          {(session.messages || [])
+            .filter((m) => {
+              const hasTextParts = m.parts?.some((p) => p.type === 'text' && p.text);
+              const hasSummary = m.summary?.title;
+              return hasTextParts || hasSummary;
+            })
+            .map((message) => (
             <div
               key={message.id}
               className={`flex gap-3 ${
