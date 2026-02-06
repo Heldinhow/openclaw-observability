@@ -173,12 +173,20 @@ let logCache: LogCache | null = null;
 
 function getOrCreateLogsComponents() {
   if (!logStreamer) {
-    const config = require('../config.js');
-    const redis = getRedisClient();
+    let redisClient: import('ioredis').default | null = null;
+    
+    getRedisClient()
+      .then(client => {
+        redisClient = client;
+        logCache = new LogCache(redisClient, parseInt(process.env.LOG_CACHE_TTL || '60'));
+      })
+      .catch(() => {
+        logger.warn('Redis not available, logs will work without caching');
+      });
+    
     sseManager = new SSEManager(parseInt(process.env.LOG_STREAM_MAX_CONNECTIONS || '100'));
-    logCache = new LogCache(redis, parseInt(process.env.LOG_CACHE_TTL || '60'));
     logStreamer = new LogStreamer({
-      logFilePath: process.env.LOG_FILE_PATH || '/tmp/openclaw/openclaw.log',
+      logFilePath: process.env.LOG_FILE_PATH || `/tmp/openclaw/openclaw-${new Date().toISOString().split('T')[0]}.log`,
       sseManager
     });
   }
@@ -190,5 +198,5 @@ const { logStreamer: streamer, sseManager: sse, logCache: cache } = getOrCreateL
 router.use('/logs', createLogsRouter({
   logStreamer: streamer,
   sseManager: sse,
-  logCache: cache
+  logCache: cache ?? undefined
 }));

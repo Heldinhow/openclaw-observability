@@ -12,7 +12,7 @@ const logger = pino({ name: 'logs-routes' });
 export interface LogsRouterOptions {
   logStreamer: LogStreamer;
   sseManager: SSEManager;
-  logCache: LogCache;
+  logCache?: LogCache;
 }
 
 export function createLogsRouter(options: LogsRouterOptions): Router {
@@ -61,6 +61,8 @@ export function createLogsRouter(options: LogsRouterOptions): Router {
         entries = await logStreamer.readHistoricalLogs(logStreamer.getCurrentFilePath(), limit);
       }
 
+      logger.debug({ entriesCount: entries.length }, 'Raw entries count');
+
       // Apply filters
       let filteredEntries = entries;
       if (level) {
@@ -81,13 +83,13 @@ export function createLogsRouter(options: LogsRouterOptions): Router {
       }
 
       // Cache entries
-      await logCache.addEntries(filteredEntries);
+      logCache && await logCache.addEntries(filteredEntries);
 
       const batch = new LogBatchModel(filteredEntries, false, filteredEntries.length);
 
       res.json(batch.toJSON());
     } catch (error) {
-      logger.error({ error }, 'Error fetching logs');
+      logger.error({ error: String(error), stack: error instanceof Error ? error.stack : undefined }, 'Error fetching logs');
       res.status(500).json({ 
         error: 'INTERNAL_ERROR',
         message: 'Failed to fetch logs' 
@@ -296,7 +298,7 @@ export function createLogsRouter(options: LogsRouterOptions): Router {
     try {
       logger.info('POST /api/logs/clear-cache');
       
-      await logCache.clearCache();
+      logCache && await logCache.clearCache();
       
       res.json({
         cleared: true,

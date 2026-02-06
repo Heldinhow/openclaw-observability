@@ -1,54 +1,39 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { LogEntry, LogFilter, StreamStatus, StreamState } from '../types/log.types';
-
-const MAX_ENTRIES = 250;
-const RETRY_INTERVAL = 5000;
+import type { LogEntry, LogFilterOptions } from '../types/log.types';
+import axios from 'axios';
 
 interface UseLogStreamOptions {
-  initialFilter?: LogFilter;
-  onError?: (error: string) => void;
+  initialFilter?: LogFilterOptions;
+  onError?: (error: Event) => void;
   onReconnect?: () => void;
 }
 
-interface UseLogStreamReturn {
-  state: StreamState;
-  status: StreamStatus;
-  connect: () => void;
-  disconnect: () => void;
-  pause: () => void;
-  resume: () => void;
-  updateFilter: (filter: LogFilter) => void;
-  clearEntries: () => void;
-}
-
-export function useLogStream(options: UseLogStreamOptions = {}): UseLogStreamReturn {
-  const { initialFilter, onError, onReconnect } = options;
-
-  const [state, setState] = useState<StreamState>({
-    status: 'closed',
-    retryCount: 0,
-    entries: []
-  });
-
+export function useLogStream(options: UseLogStreamOptions = {}) {
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [isConnected, setIsConnected] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
-  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const filterRef = useRef<LogFilter | undefined>(initialFilter);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const buildUrl = useCallback(() => {
-    const params = new URLSearchParams();
-    
-    if (filterRef.current?.levels?.length) {
-      params.set('level', filterRef.current.levels.join(','));
+  const loadInitialLogs = useCallback(async () => {
+    try {
+      const response = await axios.get('/api/logs', {
+        params: { limit: 100 }
+      });
+      if (response.data.entries) {
+        const historicalLogs: LogEntry[] = response.data.entries.map((entry: any) => ({
+          id: entry.id,
+          timestamp: entry.timestamp,
+          level: entry.level,
+          service: entry.subsystem,
+          message: entry.message,
+          metadata: entry.metadata,
+        }));
+        setLogs(historicalLogs);
+      }
+    } catch (e) {
+      console.error('Failed to load initial logs:', e);
     }
-    if (filterRef.current?.subsystem) {
-      params.set('subsystem', filterRef.current.subsystem);
-    }
-    if (filterRef.current?.searchText) {
-      params.set('search', filterRef.current.searchText);
-    }
-
-    const queryString = params.toString();
-    return `/api/logs/stream${queryString ? `?${queryString}` : ''}`;
   }, []);
 
   const connect = useCallback(() => {
@@ -56,168 +41,116 @@ export function useLogStream(options: UseLogStreamOptions = {}): UseLogStreamRet
       eventSourceRef.current.close();
     }
 
-    setState(prev => ({ ...prev, status: 'connecting', error: undefined }));
-
-    try {
-      const url = buildUrl();
-      const eventSource = new EventSource(url);
-      eventSourceRef.current = eventSource;
-
-      eventSource.onopen = () => {
-        setState(prev => ({ 
-          ...prev, 
-          status: 'connected', 
-          retryCount: 0,
-          error: undefined 
-        }));
-        onReconnect?.();
-      };
-
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          
-          if (data.status === 'connected') {
-            return;
-          }
-
-          if (data.id && data.timestamp && data.level) {
-            const newEntry: LogEntry = {
-              id: data.id,
-              timestamp: data.timestamp,
-              level: data.level,
-              subsystem: data.subsystem || 'unknown',
-              message: data.message || '',
-              metadata: data.metadata,
-              correlationId: data.correlationId,
-              sourceFile: data.sourceFile,
-              parsedAt: data.parsedAt
-            };
-
-            setState(prev => {
-              const newEntries = [...prev.entries, newEntry];
-              // Keep only last MAX_ENTRIES
-              if (newEntries.length > MAX_ENTRIES) {
-                return { ...prev, entries: newEntries.slice(-MAX_ENTRIES) };
-              }
-              return { ...prev, entries: newEntries };
-            });
-          }
-        } catch (parseError) {
-          console.error('Failed to parse log entry:', parseError);
-        }
-      };
-
-      eventSource.onerror = (error) => {
-        console.error('SSE error:', error);
-        
-        setState(prev => ({ 
-          ...prev, 
-          status: 'error',
-          retryCount: prev.retryCount + 1,
-          error: 'Connection lost. Retrying...'
-        }));
-
-        onError?.('Connection lost. Retrying...');
-
-        // Auto-retry after RETRY_INTERVAL
-        retryTimeoutRef.current = setTimeout(() => {
-          if (eventSourceRef.current?.readyState === EventSource.CLOSED) {
-            connect();
-          }
-        }, RETRY_INTERVAL);
-      };
-
-      eventSource.addEventListener('error', (event: MessageEvent) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.message) {
-            onError?.(data.message);
-          }
-          if (data.retry) {
-            retryTimeoutRef.current = setTimeout(() => {
-              connect();
-            }, data.retry);
-          }
-        } catch {
-          // Not an error event, ignore
-        }
-      });
-
-    } catch (error) {
-      console.error('Failed to create EventSource:', error);
-      setState(prev => ({ 
-        ...prev, 
-        status: 'error',
-        error: 'Failed to connect'
-      }));
+    const params = new URLSearchParams();
+    if (options.initialFilter?.levels?.length) {
+      params.set('level', options.initialFilter.levels.join(','));
     }
-  }, [buildUrl, onError, onReconnect]);
+    if (options.initialFilter?.services?.length) {
+      params.set('subsystem', options.initialFilter.services.join(','));
+    }
+    if (options.initialFilter?.search) {
+      params.set('search', options.initialFilter.search);
+    }
+
+    const url = `/api/logs/stream?${params.toString()}`;
+    const eventSource = new EventSource(url);
+
+    eventSource.onopen = () => {
+      setIsConnected(true);
+      setIsPaused(false);
+    };
+
+    eventSource.onmessage = (event) => {
+      if (isPaused) return;
+      
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'log' && data.entry) {
+          const newEntry: LogEntry = {
+            id: data.entry.id || crypto.randomUUID(),
+            timestamp: data.entry.timestamp || new Date().toISOString(),
+            level: data.entry.level || 'info',
+            message: data.entry.message || '',
+            service: data.entry.service || data.entry.subsystem || 'unknown',
+            metadata: data.entry.metadata,
+          };
+          setLogs((prev) => [newEntry, ...prev].slice(0, 250));
+        }
+      } catch (e) {
+        console.error('Failed to parse log entry:', e);
+      }
+    };
+
+    eventSource.onerror = () => {
+      setIsConnected(false);
+      options.onError?.(new Event('error'));
+
+      eventSource.close();
+      eventSourceRef.current = null;
+
+      reconnectTimeoutRef.current = setTimeout(() => {
+        connect();
+        options.onReconnect?.();
+      }, 3000);
+    };
+
+    eventSourceRef.current = eventSource;
+  }, [options.initialFilter, options.onError, options.onReconnect, isPaused]);
 
   const disconnect = useCallback(() => {
-    if (retryTimeoutRef.current) {
-      clearTimeout(retryTimeoutRef.current);
-      retryTimeoutRef.current = null;
-    }
-
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
       eventSourceRef.current = null;
     }
-
-    setState(prev => ({ 
-      ...prev, 
-      status: 'closed', 
-      error: undefined,
-      retryCount: 0 
-    }));
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+    }
+    setIsConnected(false);
   }, []);
 
   const pause = useCallback(() => {
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-    }
-    setState(prev => ({ ...prev, status: 'paused' }));
+    setIsPaused(true);
   }, []);
 
   const resume = useCallback(() => {
-    setState(prev => ({ ...prev, status: 'connecting' }));
-    connect();
-  }, [connect]);
+    setIsPaused(false);
+  }, []);
 
-  const updateFilter = useCallback((filter: LogFilter) => {
-    filterRef.current = filter;
+  const updateFilter = useCallback((_filter: LogFilterOptions) => {
     disconnect();
     connect();
-  }, [connect, disconnect]);
+  }, [disconnect, connect]);
 
   const clearEntries = useCallback(() => {
-    setState(prev => ({ ...prev, entries: [] }));
+    setLogs([]);
   }, []);
 
   useEffect(() => {
+    loadInitialLogs();
+    connect();
     return () => {
       disconnect();
     };
-  }, [disconnect]);
-
-  const status: StreamStatus = {
-    isConnected: state.status === 'connected',
-    isPaused: state.status === 'paused',
-    lastError: state.status === 'error' ? state.error || 'Unknown error' : null,
-    lastErrorAt: state.status === 'error' ? new Date().toISOString() : null,
-    entriesInMemory: state.entries.length,
-    nextRetryAt: state.status === 'error' ? new Date(Date.now() + RETRY_INTERVAL).toISOString() : null
-  };
+  }, [loadInitialLogs, connect, disconnect]);
 
   return {
-    state,
-    status,
+    logs,
+    isConnected,
+    isPaused,
     connect,
     disconnect,
     pause,
     resume,
     updateFilter,
-    clearEntries
+    clearEntries,
+    streamState: {
+      entries: logs,
+      isPaused,
+    },
+    streamStatus: {
+      isConnected,
+      isPaused,
+      entriesInMemory: logs.length,
+    },
   };
 }

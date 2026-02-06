@@ -3,6 +3,34 @@ import { v4 as uuidv4 } from 'uuid';
 
 const VALID_LEVELS: LogLevel[] = ['trace', 'debug', 'info', 'warn', 'error', 'fatal'];
 
+export interface OpenClawRawLog {
+  0?: string;
+  1?: string;
+  2?: string;
+  timestamp?: string;
+  level?: string;
+  message?: string;
+  subsystem?: string;
+  metadata?: Record<string, unknown>;
+  _meta?: {
+    runtime?: string;
+    runtimeVersion?: string;
+    hostname?: string;
+    name?: string;
+    parentNames?: string[];
+    date?: string;
+    logLevelId?: number;
+    logLevelName?: string;
+    path?: {
+      fullFilePath?: string;
+      fileName?: string;
+      fileNameWithLine?: string;
+      method?: string;
+    };
+  };
+  time?: string;
+}
+
 export class LogEntryModel implements LogEntry {
   id: string;
   timestamp: string;
@@ -17,84 +45,105 @@ export class LogEntryModel implements LogEntry {
   constructor(data: Partial<LogEntry>) {
     this.id = data.id || uuidv4();
     this.timestamp = data.timestamp || new Date().toISOString();
-    this.level = this.validateLevel(data.level);
-    this.subsystem = this.validateSubsystem(data.subsystem);
-    this.message = this.validateMessage(data.message);
+    this.level = LogEntryModel.normalizeLevel(data.level);
+    this.subsystem = LogEntryModel.normalizeSubsystem(data.subsystem);
+    this.message = LogEntryModel.normalizeMessage(data.message);
     this.metadata = data.metadata;
-    this.correlationId = data.correlationId ? this.validateCorrelationId(data.correlationId) : undefined;
+    this.correlationId = data.correlationId;
     this.sourceFile = data.sourceFile;
     this.parsedAt = data.parsedAt || new Date().toISOString();
   }
 
-  private validateLevel(level: unknown): LogLevel {
-    if (typeof level !== 'string') {
-      throw new Error('Log level must be a string');
-    }
-    
-    const normalizedLevel = level.toLowerCase() as LogLevel;
-    if (!VALID_LEVELS.includes(normalizedLevel)) {
-      throw new Error(`Invalid log level: ${level}. Must be one of: ${VALID_LEVELS.join(', ')}`);
-    }
-    
-    return normalizedLevel;
+  private static normalizeLevel(level: unknown): LogLevel {
+    if (typeof level !== 'string') return 'info';
+    const normalized = level.toLowerCase() as LogLevel;
+    return VALID_LEVELS.includes(normalized) ? normalized : 'info';
   }
 
-  private validateSubsystem(subsystem: unknown): string {
-    if (typeof subsystem !== 'string' || subsystem.length === 0) {
-      throw new Error('Subsystem must be a non-empty string');
-    }
-    
-    if (subsystem.length > 100) {
-      throw new Error('Subsystem must not exceed 100 characters');
-    }
-    
-    return subsystem;
+  private static normalizeSubsystem(subsystem: unknown): string {
+    if (typeof subsystem !== 'string' || !subsystem) return 'unknown';
+    return subsystem.length > 100 ? subsystem.substring(0, 100) : subsystem;
   }
 
-  private validateMessage(message: unknown): string {
-    if (typeof message !== 'string' || message.length === 0) {
-      throw new Error('Message must be a non-empty string');
-    }
-    
-    // Truncate if exceeds 10,000 chars
-    if (message.length > 10000) {
-      return message.substring(0, 9997) + '[...]';
-    }
-    
-    return message;
+  private static normalizeMessage(message: unknown): string {
+    if (typeof message !== 'string' || !message) return 'No message';
+    return message.length > 10000 ? message.substring(0, 9997) + '[...]' : message;
   }
 
-  private validateCorrelationId(correlationId: string): string {
-    // Alphanumeric with dashes, max 64 chars
-    const validPattern = /^[a-zA-Z0-9-]+$/;
-    if (!validPattern.test(correlationId)) {
-      throw new Error('CorrelationId must be alphanumeric with dashes only');
+  private parseOpenClawLog(parsed: OpenClawRawLog): Partial<LogEntry> {
+    let subsystem = 'unknown';
+    let message = 'No message';
+    let level: LogLevel = 'info';
+    let timestamp = new Date().toISOString();
+
+    if (parsed._meta) {
+      const meta = parsed._meta;
+      timestamp = meta.date || parsed.time || timestamp;
+      
+      if (meta.logLevelName) {
+        level = LogEntryModel.normalizeLevel(meta.logLevelName);
+      } else if (meta.logLevelId) {
+        const levelMap: Record<number, LogLevel> = { 1: 'trace', 2: 'debug', 3: 'info', 4: 'warn', 5: 'error', 6: 'fatal' };
+        level = levelMap[meta.logLevelId] || 'info';
+      }
+
+      if (meta.name) {
+        try {
+          const nameObj = JSON.parse(meta.name);
+          subsystem = nameObj.subsystem || meta.name;
+        } catch {
+          subsystem = meta.name || 'unknown';
+        }
+      } else if (meta.path?.fileName) {
+        subsystem = meta.path.fileName.split('.')[0];
+      }
     }
-    
-    if (correlationId.length > 64) {
-      throw new Error('CorrelationId must not exceed 64 characters');
+
+    if (typeof parsed[1] === 'string') {
+      message = parsed[1];
+    } else if (typeof parsed[2] === 'string') {
+      message = parsed[2];
     }
-    
-    return correlationId;
+
+    return {
+      timestamp,
+      level,
+      subsystem: subsystem || 'unknown',
+      message,
+      metadata: { originalLog: parsed, meta: parsed._meta }
+    };
   }
 
   static fromRawLine(line: string, sourceFile?: string): LogEntryModel | null {
     try {
-      const parsed = JSON.parse(line);
-      
-      // Validate required fields exist
-      if (!parsed.timestamp || !parsed.level || !parsed.message) {
-        console.warn('Missing required fields in log line:', line.substring(0, 100));
-        return null;
+      const trimmed = line.trim();
+      if (!trimmed) return null;
+
+      const parsed = JSON.parse(trimmed) as OpenClawRawLog;
+
+      if (parsed._meta || parsed[0] || parsed[1]) {
+        const data = new LogEntryModel({}).parseOpenClawLog(parsed);
+        return new LogEntryModel({
+          ...data,
+          sourceFile,
+          parsedAt: new Date().toISOString()
+        });
       }
 
-      return new LogEntryModel({
-        ...parsed,
-        sourceFile,
-        parsedAt: new Date().toISOString()
-      });
-    } catch (error) {
-      console.warn('Failed to parse log line:', error instanceof Error ? error.message : 'Unknown error');
+      if (parsed.timestamp && parsed.level && parsed.message) {
+        return new LogEntryModel({
+          timestamp: parsed.timestamp,
+          level: LogEntryModel.normalizeLevel(parsed.level),
+          subsystem: parsed.subsystem || 'unknown',
+          message: parsed.message,
+          metadata: parsed.metadata,
+          sourceFile,
+          parsedAt: new Date().toISOString()
+        });
+      }
+
+      return null;
+    } catch {
       return null;
     }
   }
