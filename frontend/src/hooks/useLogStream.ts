@@ -12,8 +12,30 @@ export function useLogStream(options: UseLogStreamOptions = {}) {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [logsPerSecond, setLogsPerSecond] = useState(0);
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Track incoming log timestamps for rate calculation
+  const incomingTimestampsRef = useRef<number[]>([]);
+  const rateIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Calculate logs/sec every second based on a 5s sliding window
+  useEffect(() => {
+    rateIntervalRef.current = setInterval(() => {
+      const now = Date.now();
+      const windowMs = 5000;
+      incomingTimestampsRef.current = incomingTimestampsRef.current.filter(
+        (ts) => now - ts < windowMs
+      );
+      const rate = incomingTimestampsRef.current.length / (windowMs / 1000);
+      setLogsPerSecond(Math.round(rate * 10) / 10);
+    }, 1000);
+
+    return () => {
+      if (rateIntervalRef.current) clearInterval(rateIntervalRef.current);
+    };
+  }, []);
 
   const loadInitialLogs = useCallback(async () => {
     try {
@@ -77,6 +99,7 @@ export function useLogStream(options: UseLogStreamOptions = {}) {
             metadata: data.entry.metadata,
           };
           setLogs((prev) => [newEntry, ...prev].slice(0, 250));
+          incomingTimestampsRef.current.push(Date.now());
         }
       } catch (e) {
         console.error('Failed to parse log entry:', e);
@@ -125,6 +148,8 @@ export function useLogStream(options: UseLogStreamOptions = {}) {
 
   const clearEntries = useCallback(() => {
     setLogs([]);
+    incomingTimestampsRef.current = [];
+    setLogsPerSecond(0);
   }, []);
 
   useEffect(() => {
@@ -139,6 +164,7 @@ export function useLogStream(options: UseLogStreamOptions = {}) {
     logs,
     isConnected,
     isPaused,
+    logsPerSecond,
     connect,
     disconnect,
     pause,
