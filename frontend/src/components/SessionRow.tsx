@@ -1,4 +1,4 @@
-import React from 'react';
+
 import type { Session } from '../types';
 
 interface SessionRowProps {

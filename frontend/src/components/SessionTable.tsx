@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { SessionRow } from './SessionRow';
 import type { Session } from '../types';
 

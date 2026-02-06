@@ -1,4 +1,4 @@
-import React from 'react';
+
 import type { HealthResponse } from '../types';
 
 interface HeaderProps {

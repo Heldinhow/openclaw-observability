@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Header } from '../components/Header';
 import { SessionTable } from '../components/SessionTable';
 import { SessionDetail } from '../components/SessionDetail';
@@ -13,7 +13,7 @@ export function Dashboard() {
   });
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
 
-  const { data: sessionsData, isLoading, error, refetch } = useSessions(filters);
+  const { data: sessionsData, isLoading, error } = useSessions(filters);
   const refreshMutation = useRefresh();
   const { data: health } = useHealth();
   const { data: selectedSession } = useSessionDetail(selectedSessionId);
