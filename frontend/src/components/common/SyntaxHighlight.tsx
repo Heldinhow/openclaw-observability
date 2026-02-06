@@ -1,5 +1,7 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
+// @ts-expect-error -- missing @types/react-syntax-highlighter
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+// @ts-expect-error -- missing @types/react-syntax-highlighter
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 interface SyntaxHighlightProps {

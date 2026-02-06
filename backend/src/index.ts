@@ -25,22 +25,24 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
   res.status(500).json({ code: 500, message: 'Internal server error' });
 });
 
-const server = app.listen(config.port, () => {
+const server = app.listen(config.port, '0.0.0.0', () => {
   logger.info({ port: config.port, env: config.nodeEnv }, 'Server started');
+  logger.info({ projectsScanPath: config.projects.scanPath }, 'Scanning projects path');
+  logger.info({ storagePath: config.storage.path }, 'OpenCode storage path');
+  logger.info({ redisEnabled: config.redis.enabled }, 'Redis status');
 });
 
-process.on('SIGTERM', async () => {
-  logger.info('SIGTERM received, shutting down');
+async function gracefulShutdown(signal: string) {
+  logger.info(`${signal} received, shutting down`);
   server.close(async () => {
-    await closeRedisClient();
+    try {
+      await closeRedisClient();
+    } catch {
+      // Already closed
+    }
     process.exit(0);
   });
-});
+}
 
-process.on('SIGINT', async () => {
-  logger.info('SIGINT received, shutting down');
-  server.close(async () => {
-    await closeRedisClient();
-    process.exit(0);
-  });
-});
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));

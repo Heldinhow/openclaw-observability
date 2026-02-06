@@ -6,75 +6,78 @@ interface LogDetailPanelProps {
   onClose?: () => void;
 }
 
+const levelColors: Record<string, string> = {
+  error: 'bg-red-400/10 text-red-400',
+  warn: 'bg-yellow-400/10 text-yellow-400',
+  debug: 'bg-neon-cyan/10 text-neon-cyan',
+  info: 'bg-neon-green/10 text-neon-green',
+  trace: 'bg-slate-400/10 text-slate-400',
+  fatal: 'bg-red-600/10 text-red-600',
+};
+
 const LogDetailPanel: React.FC<LogDetailPanelProps> = ({ log, onClose }) => {
-  if (!log) return <div style={{ flex: 1, padding: '10px' }}>Selecione um log para ver detalhes</div>;
+  if (!log) {
+    return (
+      <div className="w-96 glass-card rounded-2xl p-6 flex items-center justify-center">
+        <p className="text-slate-500 text-sm">Selecione um log para ver detalhes</p>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ 
-      flex: 1, 
-      padding: '16px', 
-      borderLeft: '1px solid #374151',
-      background: '#111827',
-      overflow: 'auto'
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <h3 style={{ color: '#f3f4f6', margin: 0 }}>Detalhes do Log</h3>
+    <div className="w-96 glass-card rounded-2xl overflow-auto flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b border-white/5">
+        <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+          <i className="ph ph-info text-neon-cyan"></i>
+          Detalhes do Log
+        </h3>
         {onClose && (
           <button 
             onClick={onClose}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: '#9ca3af',
-              cursor: 'pointer',
-              fontSize: '20px'
-            }}
+            className="w-7 h-7 rounded-lg glass flex items-center justify-center text-slate-400 hover:text-neon-cyan hover:border-neon-cyan/50 transition-all"
           >
-            ×
+            <i className="ph ph-x text-sm"></i>
           </button>
         )}
       </div>
-      <div style={{ 
-        background: '#1f2937', 
-        padding: '12px', 
-        borderRadius: '8px',
-        fontFamily: 'monospace',
-        fontSize: '13px'
-      }}>
-        <div style={{ marginBottom: '8px' }}>
-          <span style={{ color: '#6b7280' }}>ID: </span>
-          <span style={{ color: '#f3f4f6' }}>{log.id}</span>
-        </div>
-        <div style={{ marginBottom: '8px' }}>
-          <span style={{ color: '#6b7280' }}>Timestamp: </span>
-          <span style={{ color: '#f3f4f6' }}>{new Date(log.timestamp).toISOString()}</span>
-        </div>
-        <div style={{ marginBottom: '8px' }}>
-          <span style={{ color: '#6b7280' }}>Level: </span>
-          <span style={{ 
-            color: log.level === 'error' ? '#f87171' : 
-                   log.level === 'warn' ? '#fbbf24' : 
-                   log.level === 'debug' ? '#60a5fa' : '#34d399'
-          }}>
-            {log.level.toUpperCase()}
-          </span>
-        </div>
-        <div style={{ marginBottom: '8px' }}>
-          <span style={{ color: '#6b7280' }}>Service: </span>
-          <span style={{ color: '#f3f4f6' }}>{log.service}</span>
-        </div>
-        <div style={{ marginBottom: '8px' }}>
-          <span style={{ color: '#6b7280' }}>Message: </span>
-          <span style={{ color: '#f3f4f6' }}>{log.message}</span>
-        </div>
-        {log.metadata && (
+
+      {/* Content */}
+      <div className="p-4 space-y-3 font-mono text-xs">
+        <div className="glass rounded-lg p-3 space-y-3">
           <div>
-            <span style={{ color: '#6b7280' }}>Metadata: </span>
-            <pre style={{ color: '#f3f4f6', margin: '8px 0 0 0', overflow: 'auto' }}>
-              {JSON.stringify(log.metadata, null, 2)}
-            </pre>
+            <span className="text-slate-600 block mb-1">ID</span>
+            <span className="text-slate-300 break-all">{log.id}</span>
           </div>
-        )}
+          <div>
+            <span className="text-slate-600 block mb-1">Timestamp</span>
+            <span className="text-slate-300">{new Date(log.timestamp).toISOString()}</span>
+          </div>
+          <div>
+            <span className="text-slate-600 block mb-1">Level</span>
+            <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+              levelColors[log.level] || 'bg-slate-400/10 text-slate-400'
+            }`}>
+              {log.level.toUpperCase()}
+            </span>
+          </div>
+          <div>
+            <span className="text-slate-600 block mb-1">Service</span>
+            <span className="text-neon-purple">{log.service}</span>
+          </div>
+          <div>
+            <span className="text-slate-600 block mb-1">Message</span>
+            <span className="text-slate-200 leading-relaxed">{log.message}</span>
+          </div>
+          {log.metadata && (
+            <div>
+              <span className="text-slate-600 block mb-1">Metadata</span>
+              <pre className="text-slate-300 bg-slate-950/50 rounded-lg p-3 overflow-auto text-[11px] leading-relaxed">
+                {JSON.stringify(log.metadata, null, 2)}
+              </pre>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

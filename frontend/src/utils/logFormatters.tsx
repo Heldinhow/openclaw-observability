@@ -1,4 +1,5 @@
-import { LogEntry, LogLevel } from '../types/log.types';
+import type React from 'react';
+import type { LogEntry, LogLevel } from '../types/log.types';
 
 const LEVEL_COLORS: Record<LogLevel, { bg: string; text: string; border: string }> = {
   trace: { bg: 'bg-gray-400', text: 'text-gray-400', border: 'border-gray-400' },

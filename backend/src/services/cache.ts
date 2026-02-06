@@ -1,4 +1,4 @@
-import { getRedisClient } from './redis.js';
+import { getRedisClient, isRedisConnected } from './redis.js';
 import { config } from '../config.js';
 import { logger } from '../logger.js';
 import { Session, CacheEntry } from '../types/index.js';
@@ -9,74 +9,112 @@ const CACHE_KEYS = {
   PROJECT_SESSIONS: (projectId: string) => `opencode:project:${projectId}:sessions`,
 };
 
+// In-memory fallback cache
+let memoryCache: { sessions: Session[]; cachedAt: string } | null = null;
+
 export async function getCachedSessions(): Promise<Session[] | null> {
-  try {
-    const client = await getRedisClient();
-    const cached = await client.get(CACHE_KEYS.SESSIONS_LIST);
+  // Try Redis first
+  if (config.redis.enabled) {
+    try {
+      const connected = await isRedisConnected();
+      if (connected) {
+        const client = await getRedisClient();
+        const cached = await client.get(CACHE_KEYS.SESSIONS_LIST);
 
-    if (!cached) {
-      return null;
+        if (cached) {
+          const entry = JSON.parse(cached) as CacheEntry;
+          return entry.sessions;
+        }
+        return null;
+      }
+    } catch {
+      // Fall through to memory cache
     }
-
-    const entry = JSON.parse(cached) as CacheEntry;
-    return entry.sessions;
-  } catch (error) {
-    logger.warn({ error }, 'Failed to get cached sessions');
-    return null;
   }
+
+  // Memory fallback
+  if (memoryCache) {
+    const cacheAge = Date.now() - new Date(memoryCache.cachedAt).getTime();
+    if (cacheAge < config.cache.ttlSeconds * 1000) {
+      return memoryCache.sessions;
+    }
+    memoryCache = null;
+  }
+
+  return null;
 }
 
 export async function setCachedSessions(sessions: Session[]): Promise<void> {
-  try {
-    const client = await getRedisClient();
-    const entry: CacheEntry = {
-      sessions,
-      cachedAt: new Date().toISOString(),
-    };
+  const cachedAt = new Date().toISOString();
 
-    await client.setex(
-      CACHE_KEYS.SESSIONS_LIST,
-      config.cache.ttlSeconds,
-      JSON.stringify(entry)
-    );
+  // Always set memory cache
+  memoryCache = { sessions, cachedAt };
 
-    logger.debug({ sessionCount: sessions.length }, 'Sessions cached');
-  } catch (error) {
-    logger.warn({ error }, 'Failed to cache sessions (Redis may be unavailable)');
+  // Try Redis
+  if (config.redis.enabled) {
+    try {
+      const connected = await isRedisConnected();
+      if (connected) {
+        const client = await getRedisClient();
+        const entry: CacheEntry = { sessions, cachedAt };
+        await client.setex(
+          CACHE_KEYS.SESSIONS_LIST,
+          config.cache.ttlSeconds,
+          JSON.stringify(entry)
+        );
+        logger.debug({ sessionCount: sessions.length }, 'Sessions cached in Redis');
+      }
+    } catch (error) {
+      logger.debug({ error }, 'Redis cache write failed, using memory cache');
+    }
   }
 }
 
 export async function invalidateCache(): Promise<void> {
-  try {
-    const client = await getRedisClient();
-    const pattern = 'opencode:*';
+  memoryCache = null;
 
-    const keys = await client.keys(pattern);
-
-    if (keys.length > 0) {
-      await client.del(...keys);
-      logger.info({ keyCount: keys.length }, 'Cache invalidated');
+  if (config.redis.enabled) {
+    try {
+      const connected = await isRedisConnected();
+      if (connected) {
+        const client = await getRedisClient();
+        const pattern = 'opencode:*';
+        const keys = await client.keys(pattern);
+        if (keys.length > 0) {
+          await client.del(...keys);
+          logger.info({ keyCount: keys.length }, 'Redis cache invalidated');
+        }
+      }
+    } catch (error) {
+      logger.debug({ error }, 'Redis cache invalidation failed');
     }
-  } catch (error) {
-    logger.warn({ error }, 'Failed to invalidate cache (Redis may be unavailable)');
   }
 }
 
 export async function getCacheInfo(): Promise<{ cachedAt: string | null; ttl: number }> {
-  try {
-    const client = await getRedisClient();
-    const cached = await client.get(CACHE_KEYS.SESSIONS_LIST);
+  // Try Redis
+  if (config.redis.enabled) {
+    try {
+      const connected = await isRedisConnected();
+      if (connected) {
+        const client = await getRedisClient();
+        const cached = await client.get(CACHE_KEYS.SESSIONS_LIST);
 
-    if (!cached) {
-      return { cachedAt: null, ttl: 0 };
+        if (cached) {
+          const entry = JSON.parse(cached) as CacheEntry;
+          const ttl = await client.ttl(CACHE_KEYS.SESSIONS_LIST);
+          return { cachedAt: entry.cachedAt, ttl };
+        }
+      }
+    } catch {
+      // Fall through
     }
-
-    const entry = JSON.parse(cached) as CacheEntry;
-    const ttl = await client.ttl(CACHE_KEYS.SESSIONS_LIST);
-
-    return { cachedAt: entry.cachedAt, ttl };
-  } catch (error) {
-    logger.warn({ error }, 'Failed to get cache info');
-    return { cachedAt: null, ttl: 0 };
   }
+
+  // Memory fallback
+  if (memoryCache) {
+    return { cachedAt: memoryCache.cachedAt, ttl: config.cache.ttlSeconds };
+  }
+
+  return { cachedAt: null, ttl: 0 };
 }

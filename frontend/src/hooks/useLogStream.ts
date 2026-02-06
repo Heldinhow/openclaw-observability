@@ -25,7 +25,8 @@ export function useLogStream(options: UseLogStreamOptions = {}) {
           id: entry.id,
           timestamp: entry.timestamp,
           level: entry.level,
-          service: entry.subsystem,
+          service: entry.subsystem || entry.service || 'unknown',
+          subsystem: entry.subsystem || entry.service || 'unknown',
           message: entry.message,
           metadata: entry.metadata,
         }));
@@ -72,6 +73,7 @@ export function useLogStream(options: UseLogStreamOptions = {}) {
             level: data.entry.level || 'info',
             message: data.entry.message || '',
             service: data.entry.service || data.entry.subsystem || 'unknown',
+            subsystem: data.entry.subsystem || data.entry.service || 'unknown',
             metadata: data.entry.metadata,
           };
           setLogs((prev) => [newEntry, ...prev].slice(0, 250));

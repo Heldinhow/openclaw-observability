@@ -23,53 +23,33 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
   const isPaused = status?.isPaused || false;
 
   return (
-    <div style={{ 
-      display: 'flex', 
-      alignItems: 'center', 
-      gap: '12px'
-    }}>
-      <span style={{ 
-        display: 'inline-flex', 
-        alignItems: 'center',
-        gap: '6px',
-        color: connected ? '#34d399' : '#f87171',
-        fontSize: '13px'
-      }}>
-        <span style={{
-          width: '8px',
-          height: '8px',
-          borderRadius: '50%',
-          background: connected ? '#34d399' : '#f87171'
-        }} />
-        {connected ? 'Conectado' : 'Desconectado'}
+    <div className="flex items-center gap-3">
+      <span className="flex items-center gap-2 text-xs">
+        <span className={`status-dot ${connected ? 'status-active' : 'status-error'}`} />
+        <span className={connected ? 'text-neon-green' : 'text-red-400'}>
+          {connected ? 'Conectado' : 'Desconectado'}
+        </span>
       </span>
       
       {isPaused && (
-        <span style={{ color: '#fbbf24', fontSize: '13px' }}>
-          • Pausado
+        <span className="text-yellow-400 text-xs flex items-center gap-1">
+          <i className="ph ph-pause-circle"></i>
+          Pausado
         </span>
       )}
       
       {status?.entriesInMemory !== undefined && (
-        <span style={{ color: '#9ca3af', fontSize: '12px' }}>
+        <span className="text-slate-500 text-xs font-mono">
           {status.entriesInMemory} logs
         </span>
       )}
 
       {connected && (
-        <div style={{ display: 'flex', gap: '4px' }}>
+        <div className="flex gap-1.5">
           {onPause && (
             <button
               onClick={onPause}
-              style={{
-                padding: '4px 8px',
-                fontSize: '12px',
-                borderRadius: '4px',
-                border: '1px solid #4b5563',
-                background: '#374151',
-                color: '#f3f4f6',
-                cursor: 'pointer'
-              }}
+              className="px-3 py-1.5 text-[11px] rounded-lg glass text-slate-300 hover:text-neon-cyan hover:border-neon-cyan/30 transition-all"
             >
               {isPaused ? 'Resume' : 'Pause'}
             </button>
@@ -77,15 +57,7 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
           {onDisconnect && (
             <button
               onClick={onDisconnect}
-              style={{
-                padding: '4px 8px',
-                fontSize: '12px',
-                borderRadius: '4px',
-                border: '1px solid #dc2626',
-                background: '#dc2626',
-                color: 'white',
-                cursor: 'pointer'
-              }}
+              className="px-3 py-1.5 text-[11px] rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-all"
             >
               Desconectar
             </button>
@@ -96,15 +68,7 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
       {!connected && onConnect && (
         <button
           onClick={onConnect}
-          style={{
-            padding: '4px 8px',
-            fontSize: '12px',
-            borderRadius: '4px',
-            border: '1px solid #059669',
-            background: '#059669',
-            color: 'white',
-            cursor: 'pointer'
-          }}
+          className="px-3 py-1.5 text-[11px] rounded-lg bg-neon-green/10 border border-neon-green/30 text-neon-green hover:bg-neon-green/20 transition-all"
         >
           Reconectar
         </button>

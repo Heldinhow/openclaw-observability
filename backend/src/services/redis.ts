@@ -3,41 +3,63 @@ import { config } from '../config.js';
 import { logger } from '../logger.js';
 
 let redisClient: Redis | null = null;
+let redisAvailable = false;
 
 export async function getRedisClient(): Promise<Redis> {
-  if (redisClient) {
+  if (!config.redis.enabled) {
+    throw new Error('Redis is disabled');
+  }
+
+  if (redisClient && redisAvailable) {
     return redisClient;
   }
 
-  redisClient = new Redis({
-    host: config.redis.host,
-    port: config.redis.port,
-    lazyConnect: true,
-    retryStrategy: (times) => {
-      if (times > 3) {
-        logger.error({ times }, 'Redis connection failed after 3 retries');
-        return null;
+  if (!redisClient) {
+    redisClient = new Redis({
+      host: config.redis.host,
+      port: config.redis.port,
+      lazyConnect: true,
+      maxRetriesPerRequest: 1,
+      retryStrategy: (times) => {
+        if (times > 2) {
+          logger.warn('Redis unavailable after retries, running without cache');
+          redisAvailable = false;
+          return null;
+        }
+        return Math.min(times * 200, 2000);
+      },
+    });
+
+    redisClient.on('error', (err) => {
+      if (redisAvailable) {
+        logger.warn({ error: err.message }, 'Redis connection error, switching to no-cache mode');
       }
-      return Math.min(times * 100, 3000);
-    },
-  });
+      redisAvailable = false;
+    });
 
-  redisClient.on('error', (err) => {
-    logger.error({ error: err.message }, 'Redis connection error');
-  });
+    redisClient.on('connect', () => {
+      logger.info('Redis client connected');
+      redisAvailable = true;
+    });
+  }
 
-  redisClient.on('connect', () => {
-    logger.info('Redis client connected');
-  });
+  try {
+    await redisClient.connect();
+    redisAvailable = true;
+  } catch {
+    redisAvailable = false;
+    throw new Error('Redis connection failed');
+  }
 
-  await redisClient.connect();
   return redisClient;
 }
 
 export async function isRedisConnected(): Promise<boolean> {
+  if (!config.redis.enabled) return false;
+
   try {
-    const client = await getRedisClient();
-    const result = await client.ping();
+    if (!redisClient || !redisAvailable) return false;
+    const result = await redisClient.ping();
     return result === 'PONG';
   } catch {
     return false;
@@ -46,7 +68,12 @@ export async function isRedisConnected(): Promise<boolean> {
 
 export async function closeRedisClient(): Promise<void> {
   if (redisClient) {
-    await redisClient.quit();
+    try {
+      await redisClient.quit();
+    } catch {
+      // Already closed
+    }
     redisClient = null;
+    redisAvailable = false;
   }
 }

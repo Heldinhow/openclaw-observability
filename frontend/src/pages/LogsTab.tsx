@@ -20,23 +20,29 @@ export function LogsTab() {
   }, []);
 
   return (
-    <div className="h-full flex flex-col bg-gray-900">
-      <div className="px-4 py-3 border-b border-gray-700">
+    <div className="h-full flex flex-col">
+      {/* Header bar */}
+      <div className="glass-card rounded-2xl p-4 mb-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-white">Logs em Tempo Real</h2>
+          <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+            <i className="ph ph-terminal text-neon-cyan"></i>
+            Logs em Tempo Real
+          </h2>
           <ConnectionStatus isConnected={isConnected} />
         </div>
       </div>
 
-      <div className="px-4 py-2 border-b border-gray-700 bg-gray-800">
+      {/* Filter bar */}
+      <div className="glass-card rounded-2xl p-3 mb-4">
         <LogFilter 
           filter={filter}
           onFilterChange={setFilter}
         />
       </div>
 
-      <div className="flex-1 flex overflow-hidden">
-        <div className={`flex-1 ${selectedEntry ? 'mr-96' : ''} transition-all duration-300`}>
+      {/* Main content area */}
+      <div className="flex-1 flex overflow-hidden gap-4">
+        <div className={`flex-1 glass-card rounded-2xl overflow-hidden transition-all duration-300 ${selectedEntry ? 'mr-0' : ''}`}>
           <LogList
             entries={logs}
             selectedEntryId={selectedEntry?.id}
@@ -52,13 +58,15 @@ export function LogsTab() {
         )}
       </div>
 
-      <div className="px-4 py-1.5 bg-gray-800 border-t border-gray-700 text-xs text-gray-400 flex justify-between">
-        <span>{logs.length} logs em memória</span>
-        <span>
+      {/* Status bar */}
+      <div className="glass rounded-xl px-4 py-2 mt-4 text-xs text-slate-500 flex justify-between items-center font-mono">
+        <span>{logs.length} logs em memoria</span>
+        <span className="flex items-center gap-2">
+          <span className={`status-dot ${isConnected ? 'status-active' : 'status-error'}`}></span>
           {isConnected ? (
-            <span className="text-green-400">● Conectado</span>
+            <span className="text-neon-green">Conectado</span>
           ) : (
-            <span className="text-red-400">● Desconectado</span>
+            <span className="text-red-400">Desconectado</span>
           )}
         </span>
       </div>

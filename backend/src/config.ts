@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import path from 'path';
 
 dotenv.config();
 
@@ -8,9 +9,13 @@ export const config = {
   redis: {
     host: process.env.REDIS_HOST || 'localhost',
     port: parseInt(process.env.REDIS_PORT || '6379', 10),
+    enabled: process.env.REDIS_ENABLED !== 'false',
   },
   storage: {
     path: process.env.STORAGE_PATH || '/root/.local/share/opencode/storage',
+  },
+  projects: {
+    scanPath: process.env.PROJECTS_SCAN_PATH || path.resolve(__dirname, '../../projects'),
   },
   cache: {
     ttlSeconds: parseInt(process.env.CACHE_TTL_SECONDS || '300', 10),

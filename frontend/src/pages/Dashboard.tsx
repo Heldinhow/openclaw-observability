@@ -48,51 +48,64 @@ export function Dashboard() {
           name: s.directory.split('/').pop() || s.projectID,
           path: s.directory,
           lastScanned: new Date().toISOString(),
-          sessionCount: 0,
+          sessionCount: sessions.filter((ss) => ss.projectID === s.projectID).length,
         },
       ])
     ).values()
   );
 
+  const tabs = [
+    { id: 'sessions' as Tab, label: 'Sessoes', icon: 'ph ph-squares-four', count: sessions.length },
+    { id: 'logs' as Tab, label: 'Logs em Tempo Real', icon: 'ph ph-terminal', count: undefined },
+  ];
+
   return (
-    <div className="min-h-screen bg-gray-900">
-      <Header health={health} />
+    <div className="min-h-screen bg-slate-950 relative z-10">
+      <Header health={health} sessions={sessions} />
 
       {/* Tab Navigation */}
-      <div className="border-b border-gray-700">
-        <div className="container mx-auto px-6">
-          <nav className="-mb-px flex space-x-8">
-            <button
-              onClick={() => setActiveTab('sessions')}
-              className={`
-                py-4 px-1 border-b-2 font-medium text-sm transition-colors
-                ${activeTab === 'sessions'
-                  ? 'border-blue-500 text-blue-400'
-                  : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
-                }
-              `}
-            >
-              Sessões
-            </button>
-            <button
-              onClick={() => setActiveTab('logs')}
-              className={`
-                py-4 px-1 border-b-2 font-medium text-sm transition-colors
-                ${activeTab === 'logs'
-                  ? 'border-blue-500 text-blue-400'
-                  : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
-                }
-              `}
-            >
-              Logs em Tempo Real
-            </button>
+      <div className="sticky top-0 z-30 glass-strong border-b border-white/5">
+        <div className="max-w-7xl mx-auto px-6">
+          <nav className="-mb-px flex space-x-1">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`
+                  relative py-3.5 px-5 text-sm font-medium transition-all duration-300 rounded-t-lg
+                  ${activeTab === tab.id
+                    ? 'text-neon-cyan bg-white/[0.03]'
+                    : 'text-slate-500 hover:text-slate-300 hover:bg-white/[0.02]'
+                  }
+                `}
+              >
+                <span className="flex items-center gap-2.5">
+                  <i className={tab.icon}></i>
+                  {tab.label}
+                  {tab.count !== undefined && (
+                    <span className={`
+                      text-[10px] font-mono px-2 py-0.5 rounded-full
+                      ${activeTab === tab.id
+                        ? 'bg-neon-cyan/15 text-neon-cyan'
+                        : 'bg-white/5 text-slate-600'
+                      }
+                    `}>
+                      {tab.count}
+                    </span>
+                  )}
+                </span>
+                {activeTab === tab.id && (
+                  <div className="absolute bottom-0 left-2 right-2 h-[2px] bg-gradient-to-r from-neon-cyan to-neon-blue rounded-full" />
+                )}
+              </button>
+            ))}
           </nav>
         </div>
       </div>
 
-      <main className="container mx-auto px-6 py-6">
+      <main className="max-w-7xl mx-auto px-6 py-6">
         {activeTab === 'sessions' ? (
-          <>
+          <div className="fade-in">
             <Filters
               projects={projects}
               filters={filters}
@@ -114,9 +127,11 @@ export function Dashboard() {
                 onClose={handleCloseDetail}
               />
             )}
-          </>
+          </div>
         ) : (
-          <LogsTab />
+          <div className="fade-in">
+            <LogsTab />
+          </div>
         )}
       </main>
     </div>

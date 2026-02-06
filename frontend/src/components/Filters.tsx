@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { Project, SessionFilters as Filters } from '../types';
 
 interface FiltersProps {
@@ -16,6 +16,8 @@ export function Filters({
   onRefresh,
   isRefreshing,
 }: FiltersProps) {
+  const [searchOpen, setSearchOpen] = useState(false);
+
   const handleProjectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     onFilterChange({
       ...filters,
@@ -23,91 +25,117 @@ export function Filters({
     });
   };
 
-  const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    onFilterChange({
-      ...filters,
-      status: (e.target.value as 'active' | 'inactive' | 'all') || 'all',
-    });
+  const handleStatusChange = (status: 'active' | 'inactive' | 'all') => {
+    onFilterChange({ ...filters, status });
   };
 
+  const statusOptions = [
+    { value: 'all' as const, label: 'Todos', icon: 'ph ph-circles-three-plus' },
+    { value: 'active' as const, label: 'Ativo', icon: 'ph ph-lightning' },
+    { value: 'inactive' as const, label: 'Inativo', icon: 'ph ph-moon' },
+  ];
+
   return (
-    <div className="bg-gray-800 rounded-lg p-4 mb-4 flex flex-wrap gap-4 items-center">
-      <div className="flex items-center gap-2">
-        <label htmlFor="project-filter" className="text-sm text-gray-400">
-          Projeto:
-        </label>
-        <select
-          id="project-filter"
-          value={filters.project || ''}
-          onChange={handleProjectChange}
-          className="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+    <div className="mb-6 space-y-4">
+      {/* Main filter bar */}
+      <div className="glass-card rounded-2xl p-4 flex flex-wrap items-center gap-3">
+        {/* Search toggle */}
+        <button
+          onClick={() => setSearchOpen(!searchOpen)}
+          className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 ${
+            searchOpen
+              ? 'bg-neon-cyan/10 text-neon-cyan'
+              : 'glass text-slate-400 hover:text-slate-200'
+          }`}
         >
-          <option value="">Todos</option>
-          {projects.map((project) => (
-            <option key={project.id} value={project.name}>
-              {project.name} ({project.sessionCount || 0})
-            </option>
+          <i className="ph ph-magnifying-glass text-lg"></i>
+        </button>
+
+        {/* Project filter */}
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-neon-purple/10 flex items-center justify-center">
+            <i className="ph ph-folder-notch text-sm text-neon-purple"></i>
+          </div>
+          <select
+            value={filters.project || ''}
+            onChange={handleProjectChange}
+            className="input-glow rounded-xl px-3 py-2 text-sm text-slate-100 font-mono min-w-[160px]"
+          >
+            <option value="">Todos os projetos</option>
+            {projects.map((project) => (
+              <option key={project.id} value={project.name}>
+                {project.name} ({project.sessionCount || 0})
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Separator */}
+        <div className="w-px h-8 bg-white/5 hidden md:block"></div>
+
+        {/* Status pills */}
+        <div className="flex items-center gap-1.5">
+          {statusOptions.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => handleStatusChange(opt.value)}
+              className={`
+                px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-300 flex items-center gap-1.5
+                ${filters.status === opt.value
+                  ? 'bg-neon-cyan/15 text-neon-cyan border border-neon-cyan/20'
+                  : 'glass text-slate-500 hover:text-slate-300 border border-transparent'
+                }
+              `}
+            >
+              <i className={opt.icon}></i>
+              {opt.label}
+            </button>
           ))}
-        </select>
-      </div>
+        </div>
 
-      <div className="flex items-center gap-2">
-        <label htmlFor="status-filter" className="text-sm text-gray-400">
-          Status:
-        </label>
-        <select
-          id="status-filter"
-          value={filters.status || 'all'}
-          onChange={handleStatusChange}
-          className="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        {/* Spacer */}
+        <div className="flex-1"></div>
+
+        {/* Refresh button */}
+        <button
+          onClick={onRefresh}
+          disabled={isRefreshing}
+          className={`
+            px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 transition-all duration-300
+            ${isRefreshing
+              ? 'glass text-slate-500 cursor-not-allowed'
+              : 'btn-neon text-slate-950 hover:shadow-lg hover:shadow-neon-cyan/20 hover:scale-[1.02]'
+            }
+          `}
         >
-          <option value="all">Todos</option>
-          <option value="active">Ativo</option>
-          <option value="inactive">Inativo</option>
-        </select>
+          {isRefreshing ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-neon-cyan border-t-transparent"></div>
+              Atualizando...
+            </>
+          ) : (
+            <>
+              <i className="ph ph-arrow-counter-clockwise"></i>
+              Atualizar
+            </>
+          )}
+        </button>
       </div>
 
-      <div className="flex-1"></div>
-
-      <button
-        onClick={onRefresh}
-        disabled={isRefreshing}
-        className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2"
-      >
-        {isRefreshing ? (
-          <>
-            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-                fill="none"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              />
-            </svg>
-            Atualizando...
-          </>
-        ) : (
-          <>
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-              />
-            </svg>
-            Atualizar
-          </>
-        )}
-      </button>
+      {/* Expandable search bar */}
+      {searchOpen && (
+        <div className="glass-card rounded-xl p-3 fade-in">
+          <div className="relative">
+            <i className="ph ph-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+            <input
+              type="text"
+              placeholder="Buscar sessoes por titulo, ID ou projeto..."
+              className="input-glow rounded-xl pl-11 pr-4 py-3 text-sm text-slate-100 w-full placeholder:text-slate-600"
+              autoFocus
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

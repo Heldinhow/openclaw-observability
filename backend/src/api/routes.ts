@@ -1,15 +1,11 @@
 import { Router, Request, Response } from 'express';
-import { discoverSessions, getProjectList } from '../services/discovery.js';
+import { discoverSessions, getProjectList, loadJsonlSessionMessages } from '../services/discovery.js';
 import { getCachedSessions, setCachedSessions, invalidateCache, getCacheInfo } from '../services/cache.js';
 import { loadSessionMessages } from '../services/messages.js';
 import { isRedisConnected } from '../services/redis.js';
 import { logger } from '../logger.js';
-import { Session, SessionFilters, SessionDetailResponse, Project, HealthResponse } from '../types/index.js';
-import { createLogsRouter } from '../routes/logs.js';
-import { LogStreamer } from '../services/LogStreamer.js';
-import { SSEManager } from '../services/SSEManager.js';
-import { LogCache } from '../services/LogCache.js';
-import { getRedisClient } from '../services/redis.js';
+import { Message, SessionFilters, SessionDetailResponse, Project, HealthResponse } from '../types/index.js';
+import { config } from '../config.js';
 
 export const router = Router();
 
@@ -59,6 +55,7 @@ router.get('/sessions/:sessionId', async (req: Request, res: Response) => {
   try {
     const { sessionId } = req.params;
 
+    // Find the session metadata
     const sessions = await getCachedSessions();
     let session = sessions?.find((s) => s.id === sessionId);
 
@@ -72,7 +69,11 @@ router.get('/sessions/:sessionId', async (req: Request, res: Response) => {
       }
     }
 
-    const messages = await loadSessionMessages(sessionId);
+    // Try JSONL messages first, then fall back to original format
+    const jsonlMessages = await loadJsonlSessionMessages(sessionId);
+    const messages: Message[] = jsonlMessages.length > 0
+      ? jsonlMessages as Message[]
+      : await loadSessionMessages(sessionId);
 
     const response: SessionDetailResponse = {
       ...session,
@@ -86,7 +87,7 @@ router.get('/sessions/:sessionId', async (req: Request, res: Response) => {
   }
 });
 
-router.get('/projects', async (req: Request, res: Response) => {
+router.get('/projects', async (_req: Request, res: Response) => {
   try {
     const projects = await getProjectList();
 
@@ -147,16 +148,19 @@ router.get('/health', async (_req: Request, res: Response) => {
     res.json(response);
   } catch (error) {
     logger.error({ error }, 'Health check failed');
-    res.status(500).json({ code: 500, message: 'Health check failed' });
+    res.json({
+      status: 'degraded',
+      redisConnected: false,
+      discoveryLatency: -1,
+      lastDiscovery: new Date().toISOString(),
+    });
   }
 });
 
 router.post('/errors', (req: Request, res: Response) => {
   try {
     const { error, stack, url, timestamp } = req.body;
-
     logger.error({ error, stack, url, timestamp, type: 'frontend-error' }, 'Frontend error reported');
-
     res.json({ status: 'received' });
   } catch (error) {
     logger.error({ error }, 'Failed to report error');
@@ -164,39 +168,43 @@ router.post('/errors', (req: Request, res: Response) => {
   }
 });
 
-// ============ LOGS ROUTES ============
+// ============ LOGS ROUTES (optional, graceful if dependencies missing) ============
 
-// Initialize log streaming components (singleton)
-let logStreamer: LogStreamer | null = null;
-let sseManager: SSEManager | null = null;
-let logCache: LogCache | null = null;
+async function mountLogsRoutes() {
+  try {
+    const { createLogsRouter } = await import('../routes/logs.js');
+    const { LogStreamer } = await import('../services/LogStreamer.js');
+    const { SSEManager } = await import('../services/SSEManager.js');
 
-function getOrCreateLogsComponents() {
-  if (!logStreamer) {
-    let redisClient: import('ioredis').default | null = null;
-    
-    getRedisClient()
-      .then(client => {
-        redisClient = client;
-        logCache = new LogCache(redisClient, parseInt(process.env.LOG_CACHE_TTL || '60'));
-      })
-      .catch(() => {
-        logger.warn('Redis not available, logs will work without caching');
-      });
-    
-    sseManager = new SSEManager(parseInt(process.env.LOG_STREAM_MAX_CONNECTIONS || '100'));
-    logStreamer = new LogStreamer({
+    const sseManager = new SSEManager(parseInt(process.env.LOG_STREAM_MAX_CONNECTIONS || '100'));
+    const logStreamer = new LogStreamer({
       logFilePath: process.env.LOG_FILE_PATH || `/tmp/openclaw/openclaw-${new Date().toISOString().split('T')[0]}.log`,
-      sseManager
+      sseManager,
     });
+
+    let logCache: import('../services/LogCache.js').LogCache | undefined;
+
+    if (config.redis.enabled) {
+      try {
+        const { getRedisClient } = await import('../services/redis.js');
+        const { LogCache } = await import('../services/LogCache.js');
+        const redisClient = await getRedisClient();
+        logCache = new LogCache(redisClient, parseInt(process.env.LOG_CACHE_TTL || '60'));
+      } catch {
+        logger.warn('Redis not available for log caching');
+      }
+    }
+
+    router.use('/logs', createLogsRouter({
+      logStreamer,
+      sseManager,
+      logCache,
+    }));
+
+    logger.info('Logs routes mounted successfully');
+  } catch (error) {
+    logger.warn({ error }, 'Logs routes not mounted (dependencies may be missing)');
   }
-  return { logStreamer, sseManager, logCache };
 }
 
-// Mount logs routes
-const { logStreamer: streamer, sseManager: sse, logCache: cache } = getOrCreateLogsComponents();
-router.use('/logs', createLogsRouter({
-  logStreamer: streamer,
-  sseManager: sse,
-  logCache: cache ?? undefined
-}));
+mountLogsRoutes();
