@@ -6,6 +6,8 @@ interface UseLogStreamOptions {
   initialFilter?: LogFilterOptions;
   onError?: (error: Event) => void;
   onReconnect?: () => void;
+  /** Polling interval in ms (default 5000) */
+  pollInterval?: number;
 }
 
 export function useLogStream(options: UseLogStreamOptions = {}) {
@@ -13,12 +15,17 @@ export function useLogStream(options: UseLogStreamOptions = {}) {
   const [isConnected, setIsConnected] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [logsPerSecond, setLogsPerSecond] = useState(0);
-  const eventSourceRef = useRef<EventSource | null>(null);
-  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Track incoming log timestamps for rate calculation
-  const incomingTimestampsRef = useRef<number[]>([]);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const rateIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const incomingTimestampsRef = useRef<number[]>([]);
+  const lastTimestampRef = useRef<string | null>(null);
+  const isPausedRef = useRef(isPaused);
+
+  // Keep ref in sync so the interval callback sees the latest value
+  isPausedRef.current = isPaused;
+
+  const interval = options.pollInterval ?? 5000;
 
   // Calculate logs/sec every second based on a 5s sliding window
   useEffect(() => {
@@ -37,98 +44,92 @@ export function useLogStream(options: UseLogStreamOptions = {}) {
     };
   }, []);
 
-  const loadInitialLogs = useCallback(async () => {
-    try {
-      const response = await axios.get('/api/logs', {
-        params: { limit: 100 }
-      });
-      if (response.data.entries) {
-        const historicalLogs: LogEntry[] = response.data.entries.map((entry: any) => ({
-          id: entry.id,
-          timestamp: entry.timestamp,
-          level: entry.level,
-          service: entry.subsystem || entry.service || 'unknown',
-          subsystem: entry.subsystem || entry.service || 'unknown',
-          message: entry.message,
-          metadata: entry.metadata,
-        }));
-        setLogs(historicalLogs);
-      }
-    } catch (e) {
-      console.error('Failed to load initial logs:', e);
-    }
+  // Parse raw entries from the API into the frontend LogEntry shape
+  const parseEntries = useCallback((raw: any[]): LogEntry[] => {
+    return raw.map((entry: any) => ({
+      id: entry.id || crypto.randomUUID(),
+      timestamp: entry.timestamp || new Date().toISOString(),
+      level: entry.level || 'info',
+      service: entry.subsystem || entry.service || 'unknown',
+      subsystem: entry.subsystem || entry.service || 'unknown',
+      message: entry.message || '',
+      metadata: entry.metadata,
+      correlationId: entry.correlationId,
+      sourceFile: entry.sourceFile,
+    }));
   }, []);
 
-  const connect = useCallback(() => {
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-    }
+  // Fetch logs from the API — used for both initial load and polling
+  const fetchLogs = useCallback(async () => {
+    if (isPausedRef.current) return;
 
-    const params = new URLSearchParams();
-    if (options.initialFilter?.levels?.length) {
-      params.set('level', options.initialFilter.levels.join(','));
-    }
-    if (options.initialFilter?.services?.length) {
-      params.set('subsystem', options.initialFilter.services.join(','));
-    }
-    if (options.initialFilter?.search) {
-      params.set('search', options.initialFilter.search);
-    }
+    try {
+      const params: Record<string, string> = { limit: '200' };
 
-    const url = `/api/logs/stream?${params.toString()}`;
-    const eventSource = new EventSource(url);
-
-    eventSource.onopen = () => {
-      setIsConnected(true);
-      setIsPaused(false);
-    };
-
-    eventSource.onmessage = (event) => {
-      if (isPaused) return;
-      
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'log' && data.entry) {
-          const newEntry: LogEntry = {
-            id: data.entry.id || crypto.randomUUID(),
-            timestamp: data.entry.timestamp || new Date().toISOString(),
-            level: data.entry.level || 'info',
-            message: data.entry.message || '',
-            service: data.entry.service || data.entry.subsystem || 'unknown',
-            subsystem: data.entry.subsystem || data.entry.service || 'unknown',
-            metadata: data.entry.metadata,
-          };
-          setLogs((prev) => [newEntry, ...prev].slice(0, 250));
-          incomingTimestampsRef.current.push(Date.now());
-        }
-      } catch (e) {
-        console.error('Failed to parse log entry:', e);
+      // On subsequent fetches, only request logs newer than what we already have
+      if (lastTimestampRef.current) {
+        params.from = lastTimestampRef.current;
       }
-    };
 
-    eventSource.onerror = () => {
+      const response = await axios.get('/api/logs', { params });
+      const entries: any[] = response.data.entries || [];
+
+      if (entries.length === 0) {
+        setIsConnected(true);
+        return;
+      }
+
+      const parsed = parseEntries(entries);
+
+      // Track new entries for rate calculation
+      const now = Date.now();
+      if (lastTimestampRef.current) {
+        // Only count entries that are truly new (from polling, not initial load)
+        parsed.forEach(() => incomingTimestampsRef.current.push(now));
+      }
+
+      setLogs((prev) => {
+        // Merge: deduplicate by id, keep newest 500
+        const existingIds = new Set(prev.map((l) => l.id));
+        const newEntries = parsed.filter((l) => !existingIds.has(l.id));
+        const merged = [...prev, ...newEntries];
+        return merged.slice(-500);
+      });
+
+      // Update the watermark to the newest timestamp we've seen
+      const newest = entries.reduce((max: string | null, e: any) => {
+        if (!max) return e.timestamp;
+        return e.timestamp > max ? e.timestamp : max;
+      }, lastTimestampRef.current);
+      if (newest) lastTimestampRef.current = newest;
+
+      setIsConnected(true);
+    } catch (e) {
+      console.error('Failed to fetch logs:', e);
       setIsConnected(false);
       options.onError?.(new Event('error'));
-
-      eventSource.close();
-      eventSourceRef.current = null;
-
-      reconnectTimeoutRef.current = setTimeout(() => {
-        connect();
-        options.onReconnect?.();
-      }, 3000);
-    };
-
-    eventSourceRef.current = eventSource;
-  }, [options.initialFilter, options.onError, options.onReconnect, isPaused]);
-
-  const disconnect = useCallback(() => {
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-      eventSourceRef.current = null;
     }
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
+  }, [parseEntries, options.onError]);
+
+  // Start polling
+  const connect = useCallback(() => {
+    // Initial fetch immediately
+    fetchLogs();
+
+    // Then poll every N seconds
+    if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+    pollIntervalRef.current = setInterval(() => {
+      fetchLogs();
+    }, interval);
+
+    setIsConnected(true);
+  }, [fetchLogs, interval]);
+
+  // Stop polling
+  const disconnect = useCallback(() => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
     }
     setIsConnected(false);
   }, []);
@@ -139,26 +140,31 @@ export function useLogStream(options: UseLogStreamOptions = {}) {
 
   const resume = useCallback(() => {
     setIsPaused(false);
-  }, []);
+    // Fetch immediately on resume to catch up
+    fetchLogs();
+  }, [fetchLogs]);
 
   const updateFilter = useCallback((_filter: LogFilterOptions) => {
-    disconnect();
-    connect();
-  }, [disconnect, connect]);
+    // Reset state and re-fetch with new filter
+    lastTimestampRef.current = null;
+    setLogs([]);
+    fetchLogs();
+  }, [fetchLogs]);
 
   const clearEntries = useCallback(() => {
     setLogs([]);
+    lastTimestampRef.current = null;
     incomingTimestampsRef.current = [];
     setLogsPerSecond(0);
   }, []);
 
+  // Start on mount, clean up on unmount
   useEffect(() => {
-    loadInitialLogs();
     connect();
     return () => {
       disconnect();
     };
-  }, [loadInitialLogs, connect, disconnect]);
+  }, [connect, disconnect]);
 
   return {
     logs,

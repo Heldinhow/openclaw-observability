@@ -266,3 +266,313 @@ body {
   color: #00f5ff;
   text-shadow: 0 0 10px rgba(0, 245, 255, 0.5);
 }
+
+/* ============================================
+   TERMINAL LOG VIEWER
+   ============================================ */
+
+.terminal-container {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 160px);
+  background: #000000;
+  border: 1px solid #333;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'SF Mono', 'Consolas', 'Liberation Mono', 'Menlo', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow: hidden;
+}
+
+/* Title bar — looks like a terminal tab */
+.terminal-titlebar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px;
+  background: #111;
+  border-bottom: 1px solid #333;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.terminal-titlebar-text {
+  color: #888;
+  font-size: 11px;
+}
+
+.terminal-titlebar-meta {
+  color: #555;
+  font-size: 11px;
+}
+
+/* Main output area — the scrolling log pane */
+.terminal-output {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px 12px;
+  background: #000;
+  color: #ccc;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Override scrollbar for terminal */
+.terminal-output::-webkit-scrollbar {
+  width: 8px;
+}
+
+.terminal-output::-webkit-scrollbar-track {
+  background: #000;
+}
+
+.terminal-output::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 0;
+}
+
+.terminal-output::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Individual log line */
+.term-line {
+  white-space: pre-wrap;
+  word-break: break-all;
+  padding: 1px 0;
+}
+
+.term-line:hover {
+  background: #111;
+}
+
+/* Timestamp */
+.term-ts {
+  color: #666;
+}
+
+/* Level badge — text only */
+.term-level {
+  font-weight: bold;
+}
+
+/* Session ID */
+.term-session {
+  color: #5a5a8a;
+}
+
+/* Message text */
+.term-msg {
+  color: #ccc;
+}
+
+/* Continuation lines (multiline messages) */
+.term-continuation {
+  padding-left: 0;
+  color: #999;
+}
+
+/* Level colors — ANSI-inspired */
+.term-error {
+  color: #ff5555;
+}
+
+.term-error .term-msg {
+  color: #ff5555;
+}
+
+.term-error .term-level {
+  color: #ff5555;
+}
+
+.term-warn {
+  color: #ffb86c;
+}
+
+.term-warn .term-msg {
+  color: #ffb86c;
+}
+
+.term-warn .term-level {
+  color: #ffb86c;
+}
+
+.term-debug {
+  color: #888;
+}
+
+.term-debug .term-msg {
+  color: #888;
+}
+
+.term-debug .term-level {
+  color: #6272a4;
+}
+
+.term-agent {
+  color: #bd93f9;
+}
+
+.term-agent .term-msg {
+  color: #bd93f9;
+}
+
+.term-agent .term-level {
+  color: #bd93f9;
+}
+
+.term-tool {
+  color: #8be9fd;
+}
+
+.term-tool .term-msg {
+  color: #8be9fd;
+}
+
+.term-tool .term-level {
+  color: #8be9fd;
+}
+
+/* System / dim text */
+.term-system {
+  color: #888;
+}
+
+.term-dim {
+  color: #555;
+}
+
+.term-ok {
+  color: #50fa7b;
+}
+
+/* Blinking cursor */
+.term-cursor {
+  color: #ccc;
+  animation: blink-cursor 1s step-end infinite;
+}
+
+@keyframes blink-cursor {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Blink for pause indicator */
+.term-blink {
+  animation: blink-text 1.5s ease-in-out infinite;
+}
+
+@keyframes blink-text {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* Status bar */
+.terminal-statusbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 12px;
+  background: #0a0a0a;
+  border-top: 1px solid #222;
+  font-size: 11px;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.terminal-statusbar-left,
+.terminal-statusbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Prompt / command input */
+.terminal-prompt {
+  padding: 6px 12px;
+  background: #000;
+  border-top: 1px solid #222;
+  flex-shrink: 0;
+}
+
+.terminal-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.terminal-clickable {
+  cursor: text;
+}
+
+.term-prompt-char {
+  color: #50fa7b;
+  font-weight: bold;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.terminal-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #ccc;
+  font-family: inherit;
+  font-size: inherit;
+  caret-color: #50fa7b;
+  padding: 0;
+}
+
+.terminal-input::placeholder {
+  color: #333;
+}
+
+.term-hint {
+  font-size: 11px;
+}
+
+/* Filter bar */
+.terminal-filterbar {
+  display: flex;
+  gap: 2px;
+  padding: 4px 12px;
+  background: #0a0a0a;
+  border-top: 1px solid #1a1a1a;
+  flex-shrink: 0;
+}
+
+.terminal-filter-btn {
+  padding: 2px 8px;
+  background: transparent;
+  border: 1px solid #222;
+  color: #555;
+  font-family: inherit;
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.terminal-filter-btn:hover {
+  color: #888;
+  border-color: #444;
+}
+
+.terminal-filter-active {
+  color: #ccc !important;
+  border-color: #555 !important;
+  background: #1a1a1a;
+}
+
+.terminal-filter-active.term-error {
+  color: #ff5555 !important;
+  border-color: #ff5555 !important;
+}
+
+.terminal-filter-active.term-warn {
+  color: #ffb86c !important;
+  border-color: #ffb86c !important;
+}

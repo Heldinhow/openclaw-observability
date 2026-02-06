@@ -103,8 +103,8 @@ export function Dashboard() {
         </div>
       </div>
 
-      <main className="max-w-7xl mx-auto px-6 py-6">
-        {activeTab === 'sessions' ? (
+      {activeTab === 'sessions' ? (
+        <main className="max-w-7xl mx-auto px-6 py-6">
           <div className="fade-in">
             <Filters
               projects={projects}
@@ -128,12 +128,12 @@ export function Dashboard() {
               />
             )}
           </div>
-        ) : (
-          <div className="fade-in">
-            <LogsTab />
-          </div>
-        )}
-      </main>
+        </main>
+      ) : (
+        <main className="px-4 py-3 h-[calc(100vh-110px)]">
+          <LogsTab />
+        </main>
+      )}
     </div>
   );
 }
