@@ -5,6 +5,11 @@ import { loadSessionMessages } from '../services/messages.js';
 import { isRedisConnected } from '../services/redis.js';
 import { logger } from '../logger.js';
 import { Session, SessionFilters, SessionDetailResponse, Project, HealthResponse } from '../types/index.js';
+import { createLogsRouter } from '../routes/logs.js';
+import { LogStreamer } from '../services/LogStreamer.js';
+import { SSEManager } from '../services/SSEManager.js';
+import { LogCache } from '../services/LogCache.js';
+import { getRedisClient } from '../services/redis.js';
 
 export const router = Router();
 
@@ -158,3 +163,32 @@ router.post('/errors', (req: Request, res: Response) => {
     res.status(500).json({ code: 500, message: 'Failed to report error' });
   }
 });
+
+// ============ LOGS ROUTES ============
+
+// Initialize log streaming components (singleton)
+let logStreamer: LogStreamer | null = null;
+let sseManager: SSEManager | null = null;
+let logCache: LogCache | null = null;
+
+function getOrCreateLogsComponents() {
+  if (!logStreamer) {
+    const config = require('../config.js');
+    const redis = getRedisClient();
+    sseManager = new SSEManager(parseInt(process.env.LOG_STREAM_MAX_CONNECTIONS || '100'));
+    logCache = new LogCache(redis, parseInt(process.env.LOG_CACHE_TTL || '60'));
+    logStreamer = new LogStreamer({
+      logFilePath: process.env.LOG_FILE_PATH || '/tmp/openclaw/openclaw.log',
+      sseManager
+    });
+  }
+  return { logStreamer, sseManager, logCache };
+}
+
+// Mount logs routes
+const { logStreamer: streamer, sseManager: sse, logCache: cache } = getOrCreateLogsComponents();
+router.use('/logs', createLogsRouter({
+  logStreamer: streamer,
+  sseManager: sse,
+  logCache: cache
+}));
