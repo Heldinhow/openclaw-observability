@@ -1,0 +1,480 @@
+openapi: 3.0.3
+info:
+  title: OpenClaw Observability - Logs API
+  description: |
+    Real-time log streaming and historical log retrieval API for the OpenClaw Observability Dashboard.
+    
+    This API provides:
+    - Server-Sent Events (SSE) endpoint for real-time log streaming
+    - REST endpoints for historical log queries and filtering
+    - Pagination support for large log datasets
+  version: 1.0.0
+  contact:
+    name: OpenClaw Team
+servers:
+  - url: http://localhost:3000/api
+    description: Local development server
+  - url: /api
+    description: Production (relative path)
+
+paths:
+  /logs:
+    get:
+      summary: Get historical logs
+      description: |
+        Retrieve historical log entries with optional filtering and pagination.
+        Supports cursor-based pagination for efficient large dataset navigation.
+      operationId: getLogs
+      tags:
+        - Logs
+      parameters:
+        - name: cursor
+          in: query
+          description: Opaque cursor for pagination (from previous response)
+          schema:
+            type: string
+          example: "eyJ0aW1lc3RhbXAiOiIyMDI2LTAyLTA2VDE0OjMwOjAwWiJ9"
+        - name: limit
+          in: query
+          description: Number of entries to return (max 1000)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 100
+          example: 100
+        - name: level
+          in: query
+          description: Filter by log level (comma-separated for multiple)
+          schema:
+            type: string
+            enum: [trace, debug, info, warn, error, fatal]
+          example: "error,warn"
+        - name: subsystem
+          in: query
+          description: Filter by subsystem (supports wildcards with *)
+          schema:
+            type: string
+          example: "gateway/*"
+        - name: search
+          in: query
+          description: Search text in message and metadata
+          schema:
+            type: string
+            maxLength: 500
+          example: "webhook"
+        - name: from
+          in: query
+          description: Start of time range (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+          example: "2026-02-06T10:00:00Z"
+        - name: to
+          in: query
+          description: End of time range (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+          example: "2026-02-06T15:00:00Z"
+      responses:
+        '200':
+          description: Successfully retrieved log entries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogBatch'
+              example:
+                entries:
+                  - id: "550e8400-e29b-41d4-a716-446655440000"
+                    timestamp: "2026-02-06T14:30:00.123Z"
+                    level: "info"
+                    subsystem: "gateway/channels/whatsapp"
+                    message: "Webhook received from WhatsApp"
+                    metadata:
+                      webhookId: "msg_12345"
+                    correlationId: "req-abc-123"
+                    sourceFile: "/tmp/openclaw/openclaw-2026-02-06.log"
+                    parsedAt: "2026-02-06T14:30:00.500Z"
+                pagination:
+                  cursor: "eyJ0aW1lc3RhbXAiOiIyMDI2LTAyLTA2VDE0OjMwOjAwWiJ9"
+                  hasMore: true
+                  total: 15420
+        '400':
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /logs/stream:
+    get:
+      summary: Stream logs in real-time (SSE)
+      description: |
+        Server-Sent Events endpoint for real-time log streaming.
+        
+        Connect to this endpoint to receive new log entries as they are generated.
+        Supports filtering via query parameters.
+        
+        **Event Format:**
+        ```
+        event: log
+        id: 550e8400-e29b-41d4-a716-446655440000
+        data: {"timestamp":"2026-02-06T14:30:00.123Z","level":"info",...}
+        ```
+        
+        **Connection Management:**
+        - Auto-retry is handled by browser's EventSource
+        - Last-Event-ID header enables resuming from last received event
+        - Connection closes after 5 minutes of inactivity (reconnect to resume)
+      operationId: streamLogs
+      tags:
+        - Logs
+      parameters:
+        - name: level
+          in: query
+          description: Filter by log level (comma-separated for multiple)
+          schema:
+            type: string
+            enum: [trace, debug, info, warn, error, fatal]
+          example: "error,warn"
+        - name: subsystem
+          in: query
+          description: Filter by subsystem (supports wildcards)
+          schema:
+            type: string
+          example: "gateway/*"
+        - name: search
+          in: query
+          description: Search text filter
+          schema:
+            type: string
+            maxLength: 500
+        - name: Last-Event-ID
+          in: header
+          description: ID of last received event for reconnection
+          schema:
+            type: string
+      responses:
+        '200':
+          description: SSE stream established
+          content:
+            text/event-stream:
+              schema:
+                type: string
+              example: |
+                event: connected
+                data: {"status":"connected","timestamp":"2026-02-06T14:30:00Z"}
+
+                event: log
+                id: 550e8400-e29b-41d4-a716-446655440001
+                data: {"id":"550e8400-e29b-41d4-a716-446655440001","timestamp":"2026-02-06T14:30:01.123Z","level":"info","subsystem":"gateway","message":"System ready"}
+
+                event: log
+                id: 550e8400-e29b-41d4-a716-446655440002
+                data: {"id":"550e8400-e29b-41d4-a716-446655440002","timestamp":"2026-02-06T14:30:02.456Z","level":"debug","subsystem":"gateway/channels","message":"Channel initialized"}
+
+                event: error
+                data: {"message":"Log source temporarily unavailable","retry":5000}
+        '503':
+          description: Log source unavailable (SSE connection refused)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /logs/status:
+    get:
+      summary: Get stream status
+      description: |
+        Retrieve current status of the log streaming system including
+        connection state, error information, and statistics.
+      operationId: getStreamStatus
+      tags:
+        - Logs
+      responses:
+        '200':
+          description: Current stream status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StreamStatus'
+              example:
+                isConnected: true
+                isPaused: false
+                lastError: null
+                lastErrorAt: null
+                entriesInMemory: 250
+                entriesTotal: 15420
+                nextRetryAt: null
+
+  /logs/filter:
+    post:
+      summary: Apply advanced filters
+      description: |
+        POST endpoint for complex filter criteria that don't fit well in query parameters.
+        Returns filtered historical logs with pagination.
+      operationId: filterLogs
+      tags:
+        - Logs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogFilter'
+            example:
+              levels: ["error", "warn"]
+              searchText: "webhook"
+              subsystem: "gateway/*"
+              timeRange:
+                start: "2026-02-06T10:00:00Z"
+                end: "2026-02-06T15:00:00Z"
+      responses:
+        '200':
+          description: Filtered log entries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogBatch'
+        '400':
+          description: Invalid filter criteria
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /logs/pause:
+    post:
+      summary: Pause log stream
+      description: |
+        Temporarily pause the real-time log stream for the current session.
+        New log entries will be buffered but not delivered until resumed.
+      operationId: pauseStream
+      tags:
+        - Logs
+      responses:
+        '200':
+          description: Stream paused successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "paused"
+                  pausedAt:
+                    type: string
+                    format: date-time
+
+  /logs/resume:
+    post:
+      summary: Resume log stream
+      description: |
+        Resume a paused log stream. Any logs generated during the pause
+        will be delivered immediately.
+      operationId: resumeStream
+      tags:
+        - Logs
+      responses:
+        '200':
+          description: Stream resumed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "resumed"
+                  resumedAt:
+                    type: string
+                    format: date-time
+                  bufferedEntries:
+                    type: integer
+                    description: Number of entries buffered during pause
+
+  /logs/clear-cache:
+    post:
+      summary: Clear log cache
+      description: |
+        Invalidate the Redis cache for logs. Use this when log files
+        have been manually rotated or modified.
+      operationId: clearLogCache
+      tags:
+        - Logs
+        - Admin
+      responses:
+        '200':
+          description: Cache cleared successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  cleared:
+                    type: boolean
+                    example: true
+                  clearedAt:
+                    type: string
+                    format: date-time
+
+components:
+  schemas:
+    LogEntry:
+      type: object
+      required:
+        - id
+        - timestamp
+        - level
+        - subsystem
+        - message
+        - parsedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the log entry
+        timestamp:
+          type: string
+          format: date-time
+          description: When the log was generated
+        level:
+          type: string
+          enum: [trace, debug, info, warn, error, fatal]
+          description: Log severity level
+        subsystem:
+          type: string
+          maxLength: 100
+          description: Component that generated the log
+        message:
+          type: string
+          maxLength: 10000
+          description: Main log message
+        metadata:
+          type: object
+          description: Additional structured data
+        correlationId:
+          type: string
+          maxLength: 64
+          description: Request trace ID
+        sourceFile:
+          type: string
+          description: Original log file path
+        parsedAt:
+          type: string
+          format: date-time
+          description: When the backend parsed this entry
+
+    LogBatch:
+      type: object
+      required:
+        - entries
+        - pagination
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/LogEntry'
+          description: Array of log entries
+        pagination:
+          type: object
+          required:
+            - cursor
+            - hasMore
+          properties:
+            cursor:
+              type: string
+              description: Opaque cursor for next page
+            hasMore:
+              type: boolean
+              description: Whether more entries exist
+            total:
+              type: integer
+              description: Total count of matching entries (if available)
+
+    LogFilter:
+      type: object
+      properties:
+        levels:
+          type: array
+          items:
+            type: string
+            enum: [trace, debug, info, warn, error, fatal]
+          description: Log levels to include
+        searchText:
+          type: string
+          maxLength: 500
+          description: Text to search in message and metadata
+        subsystem:
+          type: string
+          maxLength: 100
+          description: Filter by subsystem (supports wildcards)
+        timeRange:
+          type: object
+          properties:
+            start:
+              type: string
+              format: date-time
+              description: Include logs from this time
+            end:
+              type: string
+              format: date-time
+              description: Include logs up to this time
+
+    StreamStatus:
+      type: object
+      required:
+        - isConnected
+        - isPaused
+        - entriesInMemory
+      properties:
+        isConnected:
+          type: boolean
+          description: Whether connected to log source
+        isPaused:
+          type: boolean
+          description: Whether stream is paused by user
+        lastError:
+          type: string
+          nullable: true
+          description: Most recent error message
+        lastErrorAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the last error occurred
+        entriesInMemory:
+          type: integer
+          description: Current count of entries in client memory
+        entriesTotal:
+          type: integer
+          description: Total entries available on server
+        nextRetryAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When next auto-retry will occur
+
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: object
+          description: Additional error details

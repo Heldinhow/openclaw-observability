@@ -31,7 +31,30 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+### Principle I: API-First Architecture
+- [ ] All data access flows through `/api/*` endpoints
+- [ ] Request/response contracts documented
+- [ ] Backend remains stateless
+
+### Principle II: Observability by Design
+- [ ] Structured logging plan defined (Pino)
+- [ ] Health check endpoint identified
+- [ ] Error tracking strategy defined
+
+### Principle III: Testing Discipline
+- [ ] Test strategy covers backend (`npm test`)
+- [ ] Test strategy covers frontend (`npm run test`)
+- [ ] Integration tests planned for cache and file system
+
+### Principle IV: Performance Through Caching
+- [ ] Redis caching strategy defined
+- [ ] Cache invalidation plan documented
+- [ ] Response pagination considered for large datasets
+
+### Principle V: Environment-Aware Configuration
+- [ ] Environment variables identified
+- [ ] No hardcoded values in design
+- [ ] Docker deployment considered
 
 ## Project Structure
 

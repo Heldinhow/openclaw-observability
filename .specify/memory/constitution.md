@@ -1,49 +1,147 @@
+<!--
+SYNC IMPACT REPORT
+==================
+Version Change: N/A → 1.0.0 (initial ratification)
+Modified Principles: All new (5 principles established)
+Added Sections:
+  - Core Principles (5 principles)
+  - Technology Stack
+  - Development Workflow
+  - Governance
+Removed Sections: N/A
+Templates Requiring Updates:
+  ✅ plan-template.md - Constitution Check gates align with principles
+  ✅ spec-template.md - User scenarios and testing align with testing discipline
+  ✅ tasks-template.md - Parallel execution and testing structure aligns
+  ✅ checklist-template.md - Validation criteria align with principles
+Follow-up TODOs:
+  - TODO(RATIFICATION_DATE): Original adoption date unknown - update when confirmed
+-->
+
 # OpenClaw Observability Constitution
 
 ## Core Principles
 
-### I. Session Observability First
-Every opencode session MUST be discoverable, trackable, and auditable. The system MUST automatically discover projects with active sessions via `opencode session list` in `projects/` directories. Session metadata (ID, timestamp, message count, status) MUST be captured and cached for rapid querying. Real-time awareness of session state takes precedence over feature complexity.
+### I. API-First Architecture
+Every feature MUST expose functionality via well-defined RESTful APIs. Backend and frontend communicate exclusively through documented endpoints.
 
-### II. API-First Backend Design
-The Node/Express backend MUST expose RESTful endpoints for all session operations. Redis with ioredis MUST serve as the cache for session data with a 5-minute update TTL. Write operations MUST queue for consistency; read operations MUST favor cached data for performance. The backend operates on port 3000 and MUST log all discovery and cache operations.
+**Non-negotiable rules:**
+- All data access MUST flow through `/api/*` endpoints
+- Request/response contracts MUST be documented and versioned
+- Backend MUST remain stateless; session state belongs to client or cache
+- Breaking API changes require MAJOR version increment
 
-### III. Frontend Experience Excellence
-The React/Vite frontend MUST provide a dark-themed, responsive UI. Session listing MUST display in a sortable table with columns: Project, Session ID, Updated, Messages, Status. Filtering by project name or session status (active/inactive) MUST be instant. The refresh button MUST trigger immediate cache invalidation and rediscovery. Session details MUST load on-demand with full history via `opencode session load` integration.
+**Rationale:** Clear separation enables independent deployment, testing, and future client implementations. The backend serves as a platform, not just a frontend accessory.
 
-### IV. Observability Integration
-The dashboard MUST integrate with existing observability infrastructure (logs/tasks). All backend operations MUST emit structured logs to the central logging system. Frontend errors MUST report to the task tracking system. Performance metrics (cache hit rates, discovery latency) MUST be exposed and visible.
+### II. Observability by Design (NON-NEGOTIABLE)
+As an observability platform, the system MUST be self-observable with comprehensive logging, monitoring, and debugging capabilities.
 
-### V. Deployment Readiness
-Production deployment MUST use ports 3000 (backend) and 5173 (frontend). The external IP 76.13.101.17 MUST be configured as the target host. All configuration MUST be environment-driven with no hardcoded production values. Health endpoints MUST expose cache freshness and discovery status.
+**Non-negotiable rules:**
+- Structured logging (Pino) REQUIRED for all operations
+- Health check endpoint (`/api/health`) MUST validate all dependencies
+- Error tracking endpoint (`/api/errors`) MUST accept frontend error reports
+- All external calls (Redis, file system) MUST log latency and outcomes
+- Logs MUST include correlation IDs for request tracing
 
-## Technical Standards
+**Rationale:** We cannot build an observability dashboard without practicing observability ourselves. This principle ensures the platform is debuggable and maintainable.
 
-All code MUST follow these non-negotiable standards:
+### III. Testing Discipline
+All code MUST be testable and tested. Tests are not optional; they are a requirement for code completeness.
 
-- Backend: TypeScript with ESLint + Prettier formatting
-- Frontend: TypeScript with Tailwind CSS for styling
-- Tests: Jest for backend, Vitest for frontend
-- Database: SQLite with migrations tracked in version control
-- Documentation: Inline JSDoc for public APIs, README for deployment
+**Non-negotiable rules:**
+- Backend: `npm test` MUST pass before any merge
+- Frontend: `npm run test` MUST pass before any merge
+- New features MUST include corresponding test cases
+- Integration tests REQUIRED for Redis cache and file system interactions
+- Contract tests REQUIRED for all API endpoints
+
+**Rationale:** Testing ensures reliability of the observability platform. Given this tool monitors critical development workflows, bugs have amplified impact on user productivity.
+
+### IV. Performance Through Caching
+The system MUST deliver sub-second response times through strategic caching and efficient data access patterns.
+
+**Non-negotiable rules:**
+- Redis cache REQUIRED for session data with configurable TTL
+- Cache invalidation endpoint (`POST /api/refresh`) MUST be available
+- File system reads MUST be minimized and batched where possible
+- Response payloads MUST be paginated for large datasets
+- Frontend MUST implement request deduplication and optimistic updates
+
+**Rationale:** Users depend on this dashboard for real-time development insights. Slow responses degrade the development experience we aim to improve.
+
+### V. Environment-Aware Configuration
+The system MUST adapt behavior based on environment without code changes.
+
+**Non-negotiable rules:**
+- Configuration MUST be environment-driven via `.env` files
+- No hardcoded URLs, credentials, or environment-specific values in source
+- Docker support REQUIRED for consistent deployment
+- Development and production configurations MUST be documented
+- Feature flags MAY be used for gradual rollouts
+
+**Rationale:** Clear configuration boundaries prevent deployment errors and enable the project to run across different environments (local, staging, production) without modification.
+
+## Technology Stack
+
+The following technologies are mandated for this project:
+
+**Backend:**
+- Node.js 20+ with Express 4.x
+- TypeScript 5.x (strict mode enabled)
+- ioredis 5.x for caching
+- Pino for structured logging
+
+**Frontend:**
+- React 18.x with TypeScript 5.x
+- Vite 5.x for build tooling
+- Tailwind CSS 3.x for styling
+- TanStack Query for state management
+
+**Testing:**
+- Backend: Jest or equivalent
+- Frontend: Vitest or equivalent
+- All tests run via `npm test`
+
+**Code Quality:**
+- ESLint for linting
+- TypeScript compiler for type checking
+- Both MUST pass in CI/CD
 
 ## Development Workflow
 
-Feature implementation MUST follow the Specify methodology:
-1. Create feature branch from main
-2. Write spec.md with user stories (prioritized P1, P2, P3)
-3. Create plan.md with technical approach
-4. Implement tasks.md breaking down work by user story
-5. Write tests before implementation for each story
-6. Ensure each user story is independently testable and deployable
-7. Code review MUST verify constitution compliance
+### Pre-commit Requirements
+- Lint checks MUST pass (`npm run lint`)
+- Type checks MUST pass (`npx tsc --noEmit`)
+- Tests MUST pass (`npm test`)
+
+### Code Review
+- All changes REQUIRE review before merge
+- Reviewers MUST verify compliance with constitution principles
+- Breaking changes REQUIRE explicit approval and migration documentation
+
+### Feature Implementation
+1. User stories MUST be defined with acceptance criteria
+2. Tests MUST be written before or alongside implementation
+3. API contracts MUST be documented before implementation
+4. Implementation MUST follow plan.md structure
 
 ## Governance
 
-This constitution supersedes all other development practices for this project. Amendments require:
-- Documentation of the proposed change
-- Impact analysis on existing features
-- Migration plan if breaking changes
-- Pull request review with constitution compliance check
+This constitution supersedes all other development practices. When in conflict, principles herein take precedence.
 
-**Version**: 1.0.0 | **Ratified**: 2026-02-05 | **Last Amended**: 2026-02-05
+### Amendment Procedure
+1. Proposed changes MUST be documented with rationale
+2. Changes affecting principles REQUIRE explicit approval
+3. Version number MUST increment according to semantic versioning:
+   - MAJOR: Backward incompatible principle redefinitions or removals
+   - MINOR: New principle/section added or materially expanded guidance
+   - PATCH: Clarifications, wording fixes, non-semantic refinements
+4. All amendments MUST update the Sync Impact Report at the top of this file
+
+### Compliance Review
+All pull requests MUST verify compliance with:
+- Constitution principles (checklist in PR template)
+- Technology stack constraints
+- Testing requirements
+
+**Version**: 1.0.0 | **Ratified**: TODO(RATIFICATION_DATE) | **Last Amended**: 2026-02-06
