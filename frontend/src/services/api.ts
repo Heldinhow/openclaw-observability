@@ -7,8 +7,9 @@ import type {
 } from '../types';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://76.13.101.17:3000',
+  baseURL: '',
   timeout: 30000,
+  withCredentials: false,
 });
 
 export async function getSessions(filters?: {

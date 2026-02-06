@@ -1,12 +1,12 @@
 import { useState, useCallback } from 'react';
-import { useLogStream } from './hooks/useLogStream';
-import LogList from './pages/LogList';
-import LogDetailPanel from './pages/LogDetailPanel';
-import ConnectionStatus from './pages/ConnectionStatus';
-import LogFilter from './pages/LogFilter';
-import type { LogEntry, LogFilterOptions } from './types/log.types';
+import { useLogStream } from '../hooks/useLogStream';
+import LogList from './LogList';
+import LogDetailPanel from './LogDetailPanel';
+import ConnectionStatus from './ConnectionStatus';
+import LogFilter from './LogFilter';
+import type { LogEntry, LogFilterOptions } from '../types/log.types';
 
-function App() {
+export function LogsTab() {
   const { logs, isConnected } = useLogStream();
   const [selectedEntry, setSelectedEntry] = useState<LogEntry | null>(null);
   const [filter, setFilter] = useState<LogFilterOptions | undefined>();
@@ -65,5 +65,3 @@ function App() {
     </div>
   );
 }
-
-export default App;
