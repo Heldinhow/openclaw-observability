@@ -1,9 +1,8 @@
-import * as Tail from 'tail';
+import Tail from 'tail';
 import pino from 'pino';
 import { LogEntry } from '../types/log.types';
 import { LogParser } from './LogParser';
 import { SSEManager } from './SSEManager';
-import { LogFilterModel } from '../models/LogFilter';
 
 const logger = pino({ name: 'LogStreamer' });
 
@@ -39,7 +38,6 @@ export class LogStreamer {
 
     try {
       this.tail = new Tail(this.currentFilePath, {
-        separator: /\r?\n/,
         follow: true,
         useWatchFile: true,
         flushAtEOF: true

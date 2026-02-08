@@ -4,6 +4,9 @@ import type {
   SessionDetailResponse,
   ProjectResponse,
   HealthResponse,
+  ZenUsage,
+  ZenModels,
+  ZenStatus,
 } from '../types';
 
 const api = axios.create({
@@ -53,6 +56,23 @@ export async function reportError(error: {
   timestamp?: number;
 }): Promise<void> {
   await api.post('/api/errors', error);
+}
+
+// ============ Zen API ============
+
+export async function getZenUsage(): Promise<ZenUsage> {
+  const response = await api.get('/api/zen/usage');
+  return response.data;
+}
+
+export async function getZenModels(): Promise<ZenModels> {
+  const response = await api.get('/api/zen/models');
+  return response.data;
+}
+
+export async function getZenStatus(): Promise<ZenStatus> {
+  const response = await api.get('/api/zen/status');
+  return response.data;
 }
 
 export default api;

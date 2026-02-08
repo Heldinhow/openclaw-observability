@@ -97,3 +97,38 @@ export interface SessionFilters {
   project?: string;
   status?: 'active' | 'inactive' | 'all';
 }
+
+// ============ Zen Types ============
+
+export interface ZenModelUsage {
+  modelId: string;
+  requests: number;
+  percentage: number;
+  isFree: boolean;
+}
+
+export interface ZenUsage {
+  requestsToday: number;
+  requestsThisMonth: number;
+  totalRequests: number;
+  models: ZenModelUsage[];
+  lastUpdated: string;
+}
+
+export interface ZenModel {
+  id: string;
+  object: string;
+  created: number;
+  owned_by: string;
+}
+
+export interface ZenModels {
+  models: ZenModel[];
+  freeModels: ZenModel[];
+  totalModels: number;
+}
+
+export interface ZenStatus {
+  configured: boolean;
+  hasApiKey: boolean;
+}

@@ -208,3 +208,31 @@ async function mountLogsRoutes() {
 }
 
 mountLogsRoutes();
+
+// ============ CRONJOBS & QUEUE ROUTES ============
+
+async function mountCronjobsRoutes() {
+  try {
+    const { router: cronjobsRouter } = await import('../routes/cronjobs.js');
+    router.use('/cronjobs', cronjobsRouter);
+    logger.info('Cronjobs routes mounted successfully');
+  } catch (error) {
+    logger.warn({ error }, 'Cronjobs routes not mounted');
+  }
+}
+
+mountCronjobsRoutes();
+
+// ============ ZEN USAGE ROUTES ============
+
+async function mountZenRoutes() {
+  try {
+    const { router: zenRouter } = await import('../routes/zen.js');
+    router.use('/zen', zenRouter);
+    logger.info('Zen routes mounted successfully');
+  } catch (error) {
+    logger.warn({ error }, 'Zen routes not mounted');
+  }
+}
+
+mountZenRoutes();

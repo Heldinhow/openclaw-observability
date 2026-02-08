@@ -24,4 +24,7 @@ export const config = {
     logsUrl: process.env.OBSERVABILITY_URL || 'http://localhost:8080/logs',
     tasksUrl: process.env.TASK_TRACKING_URL || 'http://localhost:8080/tasks',
   },
+  zen: {
+    apiKey: process.env.ZEN_API_KEY || '',
+  },
 };

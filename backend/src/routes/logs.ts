@@ -1,10 +1,11 @@
 import { Request, Response, Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { LogBatchModel } from '../models/LogBatch';
-import { validateLogFilter, validateLogEntry } from '../utils/logValidation';
+import { validateLogFilter } from '../utils/logValidation';
 import { LogStreamer } from '../services/LogStreamer';
 import { SSEManager } from '../services/SSEManager';
 import { LogCache } from '../services/LogCache';
+import { LogLevel } from '../types/log.types';
 import pino from 'pino';
 
 const logger = pino({ name: 'logs-routes' });
@@ -115,8 +116,9 @@ export function createLogsRouter(options: LogsRouterOptions): Router {
     }, 'New SSE connection');
 
     // Build filter from query params
+    const levels = level ? level.split(',').map(l => l.trim().toLowerCase()) as LogLevel[] : undefined;
     const filter = {
-      levels: level ? level.split(',').map(l => l.trim().toLowerCase()) : undefined,
+      levels,
       subsystem,
       searchText: search
     };
@@ -221,7 +223,7 @@ export function createLogsRouter(options: LogsRouterOptions): Router {
    * POST /api/logs/pause
    * Pause log stream for the current connection
    */
-  router.post('/pause', async (req: Request, res: Response) => {
+  router.post('/pause', async (_req: Request, res: Response) => {
     try {
       // In a real implementation, we'd identify the specific connection
       // For now, we broadcast a pause event to all clients
@@ -245,7 +247,7 @@ export function createLogsRouter(options: LogsRouterOptions): Router {
    * POST /api/logs/resume
    * Resume log stream for the current connection
    */
-  router.post('/resume', async (req: Request, res: Response) => {
+  router.post('/resume', async (_req: Request, res: Response) => {
     try {
       logger.info('POST /api/logs/resume');
       
@@ -267,7 +269,7 @@ export function createLogsRouter(options: LogsRouterOptions): Router {
    * GET /api/logs/status
    * Get stream status
    */
-  router.get('/status', (req: Request, res: Response) => {
+  router.get('/status', (_req: Request, res: Response) => {
     try {
       const sseStats = sseManager.getStats();
       
@@ -294,7 +296,7 @@ export function createLogsRouter(options: LogsRouterOptions): Router {
    * POST /api/logs/clear-cache
    * Clear Redis cache
    */
-  router.post('/clear-cache', async (req: Request, res: Response) => {
+  router.post('/clear-cache', async (_req: Request, res: Response) => {
     try {
       logger.info('POST /api/logs/clear-cache');
       

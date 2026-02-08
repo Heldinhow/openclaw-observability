@@ -258,6 +258,54 @@ body {
 }
 
 /* ============================================
+   MOBILE-FIRST UTILITIES
+   ============================================ */
+
+/* Touch manipulation utilities */
+.touch-manipulation {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Hide scrollbar utility */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Touch pan utility */
+.touch-pan-y {
+  touch-action: pan-y;
+}
+
+/* Extra small screen breakpoint */
+@media (max-width: 400px) {
+  .hidden-xs {
+    display: none;
+  }
+}
+
+@media (min-width: 401px) {
+  .xs\:inline {
+    display: inline;
+  }
+}
+
+/* Word break utilities for mobile */
+.break-words {
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.break-all {
+  word-break: break-all;
+}
+
+/* ============================================
    TAB ACTIVE INDICATOR
    ============================================ */
 

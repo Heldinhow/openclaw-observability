@@ -94,3 +94,49 @@ export async function loadSessionMessages(sessionId: string): Promise<Message[]>
     throw error;
   }
 }
+
+export async function loadAllMessages(): Promise<MessageMetadata[]> {
+  try {
+    const messageDir = path.join(config.storage.path, 'message');
+
+    const dirExists = await fs.access(messageDir).then(() => true).catch(() => false);
+    if (!dirExists) {
+      logger.warn('Message directory not found');
+      return [];
+    }
+
+    const sessionDirs = await fs.readdir(messageDir);
+    const allMessages: MessageMetadata[] = [];
+
+    for (const sessionDir of sessionDirs) {
+      const sessionPath = path.join(messageDir, sessionDir);
+
+      const isDir = await fs.stat(sessionPath).then(s => s.isDirectory()).catch(() => false);
+      if (!isDir) {
+        continue;
+      }
+
+      const files = await fs.readdir(sessionPath);
+
+      for (const file of files) {
+        if (!file.startsWith('msg_') || !file.endsWith('.json')) {
+          continue;
+        }
+
+        const filePath = path.join(sessionPath, file);
+        const metadata = await readMessageMetadata(filePath);
+
+        if (metadata) {
+          allMessages.push(metadata);
+        }
+      }
+    }
+
+    logger.info({ messageCount: allMessages.length }, 'All messages loaded');
+
+    return allMessages;
+  } catch (error) {
+    logger.error({ error }, 'Failed to load all messages');
+    throw error;
+  }
+}
