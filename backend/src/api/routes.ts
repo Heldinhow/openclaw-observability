@@ -6,8 +6,14 @@ import { isRedisConnected } from '../services/redis.js';
 import { logger } from '../logger.js';
 import { Message, SessionFilters, SessionDetailResponse, Project, HealthResponse } from '../types/index.js';
 import { config } from '../config.js';
+import { authRouter } from '../routes/auth.js';
+import { authMiddleware } from '../middleware/auth.js';
 
 export const router = Router();
+
+router.use('/auth', authRouter);
+
+router.use(authMiddleware);
 
 router.get('/sessions', async (req: Request, res: Response) => {
   try {

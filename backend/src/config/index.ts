@@ -12,17 +12,22 @@ const envSchema = z.object({
   // Server
   PORT: z.string().default('3001'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  
+
   // Redis
   REDIS_URL: z.string().default('redis://localhost:6379'),
-  
+
+  // Auth
+  AUTH_JWT_SECRET: z.string().min(32).default('openclaw-observability-jwt-secret-min-32chars'),
+  AUTH_USERNAME: z.string().default('admin'),
+  AUTH_PASSWORD: z.string().default('changeme'),
+
   // Subagent Configuration
   SUBAGENT_LOG_PATH: z.string().default('/var/log/openclaw/subagents'),
   SUBAGENT_RETENTION_DAYS: z.string().default('30'),
   SUBAGENT_CACHE_TTL_RUNNING: z.string().default('5'),
   SUBAGENT_CACHE_TTL_HISTORY: z.string().default('60'),
   SUBAGENT_POLLING_INTERVAL: z.string().default('5000'),
-  
+
   // Pagination
   DEFAULT_PAGE_LIMIT: z.string().default('50'),
   MAX_PAGE_LIMIT: z.string().default('100'),
@@ -42,6 +47,11 @@ export const config = {
   },
   redis: {
     url: parsed.data.REDIS_URL,
+  },
+  auth: {
+    jwtSecret: parsed.data.AUTH_JWT_SECRET,
+    username: parsed.data.AUTH_USERNAME,
+    password: parsed.data.AUTH_PASSWORD,
   },
   subagent: {
     logPath: parsed.data.SUBAGENT_LOG_PATH,

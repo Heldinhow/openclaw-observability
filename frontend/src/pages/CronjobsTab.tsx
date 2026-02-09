@@ -1,7 +1,10 @@
 import { useCronjobs } from '../hooks/useCronjobs';
+import { CronHistoryModal } from '../components/CronHistoryModal';
+import { useState } from 'react';
 
 export function CronjobsTab() {
   const { cronjobs, queue, isLoading, lastUpdated, refresh } = useCronjobs();
+  const [selectedJob, setSelectedJob] = useState<{ id: string; name: string } | null>(null);
 
   const formatTime = (timestamp?: number) => {
     if (!timestamp) return '-';
@@ -9,7 +12,6 @@ export function CronjobsTab() {
   };
 
   const formatSchedule = (schedule: string) => {
-    // Convert cron format to readable
     const parts = schedule.split(' ');
     if (parts.length === 5) {
       const [min, hour, day, month, dow] = parts;
@@ -18,9 +20,12 @@ export function CronjobsTab() {
     return schedule;
   };
 
+  const handleJobClick = (job: { id: string; name: string }) => {
+    setSelectedJob(job);
+  };
+
   return (
     <div className="w-full max-w-7xl mx-auto">
-      {/* Header */}
       <div className="px-3 sm:px-4 md:px-6">
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -44,7 +49,6 @@ export function CronjobsTab() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6 px-3 sm:px-4 md:px-6">
-        {/* Cronjobs Section */}
         <div className="bg-white/5 rounded-xl lg:rounded-xl border border-white/10 overflow-hidden">
           <div className="px-3 py-3 bg-white/5 border-b border-white/10 flex items-center justify-between">
             <h3 className="text-sm font-medium text-slate-300 flex items-center gap-2">
@@ -53,7 +57,7 @@ export function CronjobsTab() {
             </h3>
             <span className="text-xs text-slate-500">{cronjobs.length} jobs</span>
           </div>
-          
+
           <div className="divide-y divide-white/5">
             {cronjobs.length === 0 ? (
               <div className="p-8 text-center text-slate-500">
@@ -62,14 +66,18 @@ export function CronjobsTab() {
               </div>
             ) : (
               cronjobs.map((job) => (
-                <div key={job.id} className="p-3 lg:p-4 hover:bg-white/5 transition-colors">
+                <div
+                  key={job.id}
+                  className="p-3 lg:p-4 hover:bg-white/5 transition-colors cursor-pointer"
+                  onClick={() => handleJobClick({ id: job.id, name: job.name })}
+                >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                          job.status === 'ok' ? 'bg-neon-green' :
-                          job.status === 'error' ? 'bg-red-500' :
-                          job.status === 'disabled' ? 'bg-slate-500' : 'bg-yellow-500'
+                          job.lastStatus === 'ok' ? 'bg-neon-green' :
+                          job.lastStatus === 'error' ? 'bg-red-500' :
+                          !job.enabled ? 'bg-slate-500' : 'bg-yellow-500'
                         }`}></span>
                         <span className="text-sm font-medium text-white truncate">{job.name}</span>
                       </div>
@@ -87,8 +95,8 @@ export function CronjobsTab() {
                       </div>
                     </div>
                     <span className={`px-2 py-0.5 rounded text-[10px] font-mono flex-shrink-0 ${
-                      job.enabled 
-                        ? 'bg-neon-green/10 text-neon-green' 
+                      job.enabled
+                        ? 'bg-neon-green/10 text-neon-green'
                         : 'bg-slate-500/10 text-slate-500'
                     }`}>
                       {job.enabled ? 'ATIVO' : 'DESATIVADO'}
@@ -100,7 +108,6 @@ export function CronjobsTab() {
           </div>
         </div>
 
-        {/* Queue Section */}
         <div className="bg-white/5 rounded-xl border border-white/10 overflow-hidden">
           <div className="px-3 py-3 bg-white/5 border-b border-white/10 flex items-center justify-between">
             <h3 className="text-sm font-medium text-slate-300 flex items-center gap-2">
@@ -114,7 +121,6 @@ export function CronjobsTab() {
 
           {queue ? (
             <div className="divide-y divide-white/5">
-              {/* Ready */}
               {queue.ready.length > 0 && (
                 <div className="p-3 lg:p-4">
                   <h4 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
@@ -132,7 +138,6 @@ export function CronjobsTab() {
                 </div>
               )}
 
-              {/* In Progress */}
               {queue.inProgress.length > 0 && (
                 <div className="p-3 lg:p-4 bg-neon-cyan/5">
                   <h4 className="text-xs font-medium text-neon-cyan uppercase tracking-wider mb-2 flex items-center gap-1">
@@ -150,7 +155,6 @@ export function CronjobsTab() {
                 </div>
               )}
 
-              {/* Blocked */}
               {queue.blocked.length > 0 && (
                 <div className="p-3 lg:p-4">
                   <h4 className="text-xs font-medium text-red-400 uppercase tracking-wider mb-2 flex items-center gap-1">
@@ -168,7 +172,6 @@ export function CronjobsTab() {
                 </div>
               )}
 
-              {/* Done */}
               {queue.done.length > 0 && (
                 <div className="p-3 lg:p-4">
                   <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
@@ -191,9 +194,8 @@ export function CronjobsTab() {
                 </div>
               )}
 
-              {/* Empty state */}
-              {queue.ready.length === 0 && 
-               queue.inProgress.length === 0 && 
+              {queue.ready.length === 0 &&
+               queue.inProgress.length === 0 &&
                queue.blocked.length === 0 && (
                 <div className="p-6 lg:p-8 text-center text-slate-500">
                   <i className="ph ph-list text-3xl mb-2 block"></i>
@@ -209,6 +211,14 @@ export function CronjobsTab() {
           )}
         </div>
       </div>
+
+      {selectedJob && (
+        <CronHistoryModal
+          jobId={selectedJob.id}
+          jobName={selectedJob.name}
+          onClose={() => setSelectedJob(null)}
+        />
+      )}
     </div>
   );
 }

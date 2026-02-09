@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 export interface Cronjob {
   id: string;
@@ -7,8 +7,27 @@ export interface Cronjob {
   schedule: string;
   nextRun?: number;
   lastRun?: number;
-  status: 'ok' | 'error' | 'idle' | 'disabled';
+  lastStatus?: 'ok' | 'error' | 'idle';
+  lastDurationMs?: number;
   enabled: boolean;
+}
+
+export interface CronRun {
+  id: string;
+  jobId: string;
+  timestamp: number;
+  status: 'ok' | 'error';
+  summary?: string;
+  error?: string;
+  durationMs: number;
+  nextRunAtMs?: number;
+}
+
+export interface CronHistoryResponse {
+  jobId: string;
+  jobName: string;
+  runs: CronRun[];
+  totalRuns: number;
 }
 
 export interface QueueTask {
@@ -45,10 +64,20 @@ export function useCronjobs() {
       setLastUpdated(new Date());
     } catch (err) {
       console.error('Error fetching cronjobs:', err);
-      // Set empty data if fetch fails
       setCronjobs([]);
     }
   };
+
+  const fetchCronHistory = useCallback(async (jobId: string, limit = 50): Promise<CronHistoryResponse | null> => {
+    try {
+      const response = await fetch(`/api/cronjobs/${jobId}/history?limit=${limit}`);
+      if (!response.ok) throw new Error('Failed to fetch cron history');
+      return await response.json();
+    } catch (err) {
+      console.error('Error fetching cron history:', err);
+      return null;
+    }
+  }, []);
 
   const fetchQueue = async () => {
     try {
@@ -86,8 +115,7 @@ export function useCronjobs() {
 
   useEffect(() => {
     fetchAll();
-    
-    // Refresh every 30 seconds
+
     const interval = setInterval(fetchAll, 30000);
     return () => clearInterval(interval);
   }, []);
@@ -99,6 +127,7 @@ export function useCronjobs() {
     error,
     lastUpdated,
     refresh,
-    refetch: fetchAll
+    refetch: fetchAll,
+    fetchCronHistory,
   };
 }

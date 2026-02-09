@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { HealthResponse, Session } from '../types';
+import { useAuth } from '../contexts/AuthContext.js';
 
 interface HeaderProps {
   health?: HealthResponse;
@@ -8,6 +9,7 @@ interface HeaderProps {
 
 export function Header({ health, sessions = [] }: HeaderProps) {
   const [isMobile, setIsMobile] = useState(false);
+  const { username, logout } = useAuth();
 
   useEffect(() => {
     const checkMobile = () => {
@@ -96,6 +98,20 @@ export function Header({ health, sessions = [] }: HeaderProps) {
               <div className="text-[10px] md:text-xs text-slate-500 font-mono glass rounded-lg md:rounded-xl px-2 md:px-4 py-1.5 md:py-2 hidden sm:inline">
                 <i className="ph ph-timer mr-1"></i>
                 {health.discoveryLatency}ms
+              </div>
+              <div className="flex items-center gap-2">
+                {username && (
+                  <span className="text-xs text-slate-500 hidden sm:inline">
+                    {username}
+                  </span>
+                )}
+                <button
+                  onClick={logout}
+                  className="text-xs text-slate-500 hover:text-neon-cyan transition-colors px-2 py-1.5 rounded-lg hover:bg-white/5"
+                  title="Sair"
+                >
+                  <i className="ph ph-sign-out"></i>
+                </button>
               </div>
             </div>
           )}

@@ -1,6 +1,6 @@
 # openclaw-observability Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-02-05
+Auto-generated from all feature plans. Last updated: 2026-02-09
 
 ## Active Technologies
 - TypeScript 5.x, Node.js 20+ (002-realtime-logs-tab)
@@ -9,6 +9,25 @@ Auto-generated from all feature plans. Last updated: 2026-02-05
 - Redis (cache layer), File system (JSON Lines log files) (001-subagents-dashboard)
 
 - TypeScript 5.x (backend + frontend) + Node.js 20+, Express 4.x, React 18.x, Vite 5.x, Tailwind CSS 3.x, ioredis 5.x (001-session-details-view)
+
+## Authentication
+
+The dashboard uses JWT authentication with a single user configured via environment variables:
+
+### Environment Variables (`.env`)
+```bash
+AUTH_JWT_SECRET=your-32-char-minimum-secret-key
+AUTH_USERNAME=admin
+AUTH_PASSWORD=your-secure-password
+```
+
+### API Endpoints
+- `POST /api/auth/login` - Login with username/password, returns JWT token
+- `POST /api/auth/validate` - Validate JWT token
+- `POST /api/auth/logout` - Logout (client-side token removal)
+
+### Protected Routes
+All `/api/*` routes except `/api/auth/*` require JWT authentication via `Authorization: Bearer <token>` header.
 
 ## Project Structure
 
@@ -32,4 +51,6 @@ TypeScript 5.x (backend + frontend): Follow standard conventions
 - 001-session-details-view: Added TypeScript 5.x (backend + frontend) + Node.js 20+, Express 4.x, React 18.x, Vite 5.x, Tailwind CSS 3.x, ioredis 5.x
 
 <!-- MANUAL ADDITIONS START -->
+003-cronjobs-history: Implementado histórico de execuções de cronjobs com status (ok/error) e output completo via modal
+004-authentication: Implementado sistema de autenticação JWT com single user configurável via .env
 <!-- MANUAL ADDITIONS END -->
