@@ -7,10 +7,11 @@ import { useSessions, useRefresh, useHealth, useSessionDetail } from '../hooks/u
 import { LogsTab } from './LogsTab';
 import { CronjobsTab } from './CronjobsTab';
 import { UsageTab } from './UsageTab';
+import { SubagentsPage } from './Dashboard/SubagentsPage';
 import { useSwipe } from '../hooks/useSwipe';
 import type { Session, SessionFilters } from '../types';
 
-type Tab = 'sessions' | 'logs' | 'cronjobs' | 'usage';
+type Tab = 'sessions' | 'logs' | 'cronjobs' | 'usage' | 'subagents';
 
 export function Dashboard() {
   const [activeTab, setActiveTab] = useState<Tab>('sessions');
@@ -54,7 +55,7 @@ export function Dashboard() {
   }, [refreshMutation]);
 
   // Swipe navigation between tabs
-  const tabsArray: Tab[] = ['sessions', 'logs', 'cronjobs', 'usage'];
+  const tabsArray: Tab[] = ['sessions', 'logs', 'subagents', 'cronjobs', 'usage'];
   
   const handleSwipeLeft = useCallback(() => {
     const currentIndex = tabsArray.indexOf(activeTab);
@@ -76,7 +77,7 @@ export function Dashboard() {
     onSwipeRight: handleSwipeRight,
   });
 
-  // Scroll active tab into view
+  // Scroll active tab into view and reset horizontal scroll
   useEffect(() => {
     if (tabsRef.current && isMobile) {
       const activeButton = tabsRef.current.querySelector(`[data-tab="${activeTab}"]`) as HTMLElement;
@@ -84,6 +85,8 @@ export function Dashboard() {
         activeButton.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
       }
     }
+    // Reset horizontal scroll when changing tabs
+    window.scrollTo({ left: 0, behavior: 'smooth' });
   }, [activeTab, isMobile]);
 
   const sessions = sessionsData?.sessions || [];
@@ -105,6 +108,7 @@ export function Dashboard() {
   const tabs = [
     { id: 'sessions' as Tab, label: 'Sessoes', shortLabel: 'Sessoes', icon: 'ph ph-squares-four', count: sessions.length },
     { id: 'logs' as Tab, label: 'Logs em Tempo Real', shortLabel: 'Logs', icon: 'ph ph-terminal', count: undefined },
+    { id: 'subagents' as Tab, label: 'Subagentes', shortLabel: 'Agents', icon: 'ph ph-robot', count: undefined },
     { id: 'cronjobs' as Tab, label: 'Cronjobs & Queue', shortLabel: 'Cron', icon: 'ph ph-clock', count: undefined },
     { id: 'usage' as Tab, label: 'Zen Usage', shortLabel: 'Usage', icon: 'ph ph-coin', count: undefined },
   ];
@@ -215,6 +219,10 @@ export function Dashboard() {
         ) : activeTab === 'logs' ? (
           <main className="px-2 md:px-4 py-2 md:py-3 h-[calc(100vh-120px)] md:h-[calc(100vh-110px)]">
             <LogsTab />
+          </main>
+        ) : activeTab === 'subagents' ? (
+          <main className="h-[calc(100vh-120px)] md:h-[calc(100vh-110px)] overflow-auto">
+            <SubagentsPage />
           </main>
         ) : activeTab === 'usage' ? (
           <main className="px-3 sm:px-4 md:px-6 py-3 md:py-6 max-w-7xl mx-auto">

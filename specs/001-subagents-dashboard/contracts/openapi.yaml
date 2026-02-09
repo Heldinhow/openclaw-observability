@@ -1,0 +1,440 @@
+openapi: 3.0.3
+info:
+  title: OpenClaw Observability - Subagents API
+  description: API for monitoring and querying subagent executions in the OpenClaw Observability dashboard
+  version: 1.0.0
+  contact:
+    name: OpenClaw Team
+
+servers:
+  - url: /api
+    description: Base API path
+
+paths:
+  /subagents/running:
+    get:
+      summary: List running subagents
+      description: Returns all currently active/running subagents with real-time status
+      operationId: listRunningSubagents
+      tags:
+        - Subagents
+      parameters:
+        - name: search
+          in: query
+          description: Search term to filter by name, task ID, or session ID
+          schema:
+            type: string
+          example: "cleanup-task"
+        - name: limit
+          in: query
+          description: Maximum number of results to return
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+        - name: offset
+          in: query
+          description: Number of results to skip (for pagination)
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Successfully retrieved running subagents
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubagentListResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /subagents/history:
+    get:
+      summary: List subagent execution history
+      description: Returns historical subagent executions with filtering and pagination support
+      operationId: listSubagentHistory
+      tags:
+        - Subagents
+      parameters:
+        - name: status
+          in: query
+          description: Filter by execution status
+          schema:
+            type: string
+            enum: [completed, failed, cancelled]
+        - name: from
+          in: query
+          description: Start date for date range filter (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+          example: "2026-01-01T00:00:00Z"
+        - name: to
+          in: query
+          description: End date for date range filter (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+          example: "2026-02-09T23:59:59Z"
+        - name: search
+          in: query
+          description: Search term to filter by name, task ID, or session ID
+          schema:
+            type: string
+          example: "task-123"
+        - name: limit
+          in: query
+          description: Maximum number of results to return
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+        - name: offset
+          in: query
+          description: Number of results to skip (for pagination)
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Successfully retrieved subagent history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubagentHistoryListResponse'
+        '400':
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /subagents/{id}:
+    get:
+      summary: Get subagent details
+      description: Returns detailed information about a specific subagent including full logs and execution context
+      operationId: getSubagentDetails
+      tags:
+        - Subagents
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Unique subagent identifier
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Successfully retrieved subagent details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubagentDetailResponse'
+        '404':
+          description: Subagent not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /subagents/search:
+    post:
+      summary: Search subagents
+      description: Advanced search across all subagents (both running and historical) with multiple filter criteria
+      operationId: searchSubagents
+      tags:
+        - Subagents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubagentSearchRequest'
+      responses:
+        '200':
+          description: Successfully searched subagents
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubagentListResponse'
+        '400':
+          description: Invalid search criteria
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /refresh:
+    post:
+      summary: Refresh cache
+      description: Invalidates cached subagent data to force fresh reads from storage
+      operationId: refreshCache
+      tags:
+        - System
+      responses:
+        '200':
+          description: Cache refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Cache refreshed successfully"
+                  invalidatedKeys:
+                    type: integer
+                    example: 5
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    Subagent:
+      type: object
+      required:
+        - id
+        - name
+        - status
+        - startTime
+        - taskId
+        - sessionId
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique subagent identifier
+        name:
+          type: string
+          description: Human-readable subagent name
+        status:
+          type: string
+          enum: [idle, running, completed, failed, cancelled]
+          description: Current execution status
+        startTime:
+          type: string
+          format: date-time
+          description: Execution start timestamp
+        endTime:
+          type: string
+          format: date-time
+          nullable: true
+          description: Execution end timestamp (null if running)
+        duration:
+          type: integer
+          nullable: true
+          description: Execution duration in seconds (null if running)
+        taskId:
+          type: string
+          description: Associated task identifier
+        sessionId:
+          type: string
+          description: Associated session identifier
+        logSummary:
+          type: string
+          nullable: true
+          description: Truncated log preview (first 500 characters)
+
+    SubagentDetail:
+      allOf:
+        - $ref: '#/components/schemas/Subagent'
+        - type: object
+          properties:
+            logs:
+              type: array
+              description: Complete execution log entries
+              items:
+                $ref: '#/components/schemas/LogEntry'
+            parameters:
+              type: object
+              nullable: true
+              description: Input parameters passed to the subagent
+            results:
+              type: object
+              nullable: true
+              description: Output results from execution
+            errorMessage:
+              type: string
+              nullable: true
+              description: Error details if status is failed
+            resourceUsage:
+              type: object
+              nullable: true
+              properties:
+                cpuPercent:
+                  type: number
+                  description: CPU usage percentage
+                memoryMB:
+                  type: integer
+                  description: Memory usage in megabytes
+
+    LogEntry:
+      type: object
+      required:
+        - timestamp
+        - level
+        - message
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: When the log entry was generated
+        level:
+          type: string
+          enum: [debug, info, warn, error]
+          description: Log level
+        message:
+          type: string
+          description: Log message content
+        metadata:
+          type: object
+          nullable: true
+          description: Additional structured data
+
+    SubagentListResponse:
+      type: object
+      required:
+        - data
+        - pagination
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Subagent'
+        pagination:
+          $ref: '#/components/schemas/PaginationInfo'
+
+    SubagentHistoryListResponse:
+      type: object
+      required:
+        - data
+        - pagination
+        - filters
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Subagent'
+        pagination:
+          $ref: '#/components/schemas/PaginationInfo'
+        filters:
+          type: object
+          properties:
+            applied:
+              type: object
+              description: Applied filter criteria
+            totalCount:
+              type: integer
+              description: Total matching records before pagination
+
+    SubagentDetailResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: '#/components/schemas/SubagentDetail'
+
+    SubagentSearchRequest:
+      type: object
+      properties:
+        search:
+          type: string
+          description: General search term
+        status:
+          type: array
+          items:
+            type: string
+            enum: [idle, running, completed, failed, cancelled]
+          description: Filter by statuses
+        from:
+          type: string
+          format: date-time
+          description: Start date
+        to:
+          type: string
+          format: date-time
+          description: End date
+        taskId:
+          type: string
+          description: Filter by specific task
+        sessionId:
+          type: string
+          description: Filter by specific session
+        limit:
+          type: integer
+          default: 50
+          maximum: 100
+        offset:
+          type: integer
+          default: 0
+
+    PaginationInfo:
+      type: object
+      required:
+        - limit
+        - offset
+        - total
+        - hasMore
+      properties:
+        limit:
+          type: integer
+          description: Results per page
+        offset:
+          type: integer
+          description: Current offset
+        total:
+          type: integer
+          description: Total available results
+        hasMore:
+          type: boolean
+          description: Whether more results are available
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              description: Error code
+            message:
+              type: string
+              description: Human-readable error message
+            details:
+              type: object
+              nullable: true
+              description: Additional error context

@@ -236,3 +236,17 @@ async function mountZenRoutes() {
 }
 
 mountZenRoutes();
+
+// ============ SUBAGENT ROUTES ============
+
+async function mountSubagentRoutes() {
+  try {
+    const { subagentRouter } = await import('./routes/subagents.js');
+    router.use('/subagents', subagentRouter);
+    logger.info('Subagent routes mounted successfully');
+  } catch (error) {
+    logger.warn({ error }, 'Subagent routes not mounted');
+  }
+}
+
+mountSubagentRoutes();

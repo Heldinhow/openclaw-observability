@@ -19,29 +19,31 @@ export function CronjobsTab() {
   };
 
   return (
-    <div className="px-3 sm:px-4 md:px-6 max-w-7xl mx-auto overflow-x-hidden">
+    <div className="w-full max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-xl font-semibold text-white">Cronjobs & Queue</h2>
-          {lastUpdated && (
-            <p className="text-xs text-slate-500 mt-1">
-              Última atualização: {lastUpdated.toLocaleTimeString('pt-BR')}
-            </p>
-          )}
+      <div className="px-3 sm:px-4 md:px-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-xl font-semibold text-white">Cronjobs & Queue</h2>
+            {lastUpdated && (
+              <p className="text-xs text-slate-500 mt-1">
+                Última atualização: {lastUpdated.toLocaleTimeString('pt-BR')}
+              </p>
+            )}
+          </div>
+          <button
+            onClick={refresh}
+            className="px-4 py-2 bg-neon-cyan/10 text-neon-cyan rounded-lg text-sm font-medium
+                       hover:bg-neon-cyan/20 transition-colors flex items-center gap-2"
+            disabled={isLoading}
+          >
+            <i className="ph ph-arrow-clockwise"></i>
+            {isLoading ? 'Atualizando...' : 'Atualizar'}
+          </button>
         </div>
-        <button
-          onClick={refresh}
-          className="px-4 py-2 bg-neon-cyan/10 text-neon-cyan rounded-lg text-sm font-medium
-                     hover:bg-neon-cyan/20 transition-colors flex items-center gap-2"
-          disabled={isLoading}
-        >
-          <i className="ph ph-arrow-clockwise"></i>
-          {isLoading ? 'Atualizando...' : 'Atualizar'}
-        </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6 px-3 sm:px-4 md:px-6">
         {/* Cronjobs Section */}
         <div className="bg-white/5 rounded-xl lg:rounded-xl border border-white/10 overflow-hidden">
           <div className="px-3 py-3 bg-white/5 border-b border-white/10 flex items-center justify-between">

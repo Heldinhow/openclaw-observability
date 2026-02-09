@@ -52,7 +52,7 @@ export function useCronjobs() {
 
   const fetchQueue = async () => {
     try {
-      const response = await fetch('/api/queue');
+      const response = await fetch('/api/cronjobs/queue');
       if (!response.ok) throw new Error('Failed to fetch queue');
       const data = await response.json();
       setQueue(data.queue || { ready: [], inProgress: [], blocked: [], done: [] });

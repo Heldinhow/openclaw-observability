@@ -7,6 +7,11 @@ import type {
   ZenUsage,
   ZenModels,
   ZenStatus,
+  Subagent,
+  SubagentDetail,
+  SubagentListResponse,
+  SubagentHistoryListResponse,
+  SubagentFilters,
 } from '../types';
 
 const api = axios.create({
@@ -72,6 +77,67 @@ export async function getZenModels(): Promise<ZenModels> {
 
 export async function getZenStatus(): Promise<ZenStatus> {
   const response = await api.get('/api/zen/status');
+  return response.data;
+}
+
+// ============ Subagent API ============
+
+export async function getRunningSubagents(
+  filters?: SubagentFilters
+): Promise<SubagentListResponse> {
+  const params = new URLSearchParams();
+  if (filters?.search) params.append('search', filters.search);
+  if (filters?.limit) params.append('limit', String(filters.limit));
+  if (filters?.offset) params.append('offset', String(filters.offset));
+
+  const response = await api.get(`/api/subagents/running?${params.toString()}`);
+  return response.data;
+}
+
+export async function getSubagentHistory(
+  filters?: SubagentFilters
+): Promise<SubagentHistoryListResponse> {
+  const params = new URLSearchParams();
+  if (filters?.status) params.append('status', String(filters.status));
+  if (filters?.from) params.append('from', filters.from);
+  if (filters?.to) params.append('to', filters.to);
+  if (filters?.search) params.append('search', filters.search);
+  if (filters?.limit) params.append('limit', String(filters.limit));
+  if (filters?.offset) params.append('offset', String(filters.offset));
+
+  const response = await api.get(`/api/subagents/history?${params.toString()}`);
+  return response.data;
+}
+
+export async function getSubagentDetail(
+  subagentId: string
+): Promise<{ data: SubagentDetail }> {
+  const response = await api.get(`/api/subagents/${subagentId}`);
+  return response.data;
+}
+
+export async function searchSubagents(
+  search: string,
+  filters?: SubagentFilters
+): Promise<SubagentListResponse> {
+  const response = await api.post('/api/subagents/search', {
+    search,
+    status: filters?.status,
+    from: filters?.from,
+    to: filters?.to,
+    taskId: filters?.taskId,
+    sessionId: filters?.sessionId,
+    limit: filters?.limit || 50,
+    offset: filters?.offset || 0,
+  });
+  return response.data;
+}
+
+export async function refreshSubagentCache(): Promise<{
+  message: string;
+  invalidatedKeys: number;
+}> {
+  const response = await api.post('/api/subagents/refresh');
   return response.data;
 }
 

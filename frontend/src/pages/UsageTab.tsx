@@ -35,7 +35,7 @@ export function UsageTab() {
 
   if (!isConfigured) {
     return (
-      <div className="space-y-6 px-3 sm:px-4 md:px-6 max-w-7xl mx-auto overflow-x-hidden">
+      <div className="w-full max-w-7xl mx-auto space-y-6 px-3 sm:px-4 md:px-6">
         {/* Header */}
         <div className="glass-strong rounded-xl p-6 border border-neon-cyan/20">
           <div className="flex items-center gap-4">
@@ -88,7 +88,7 @@ export function UsageTab() {
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6 px-3 sm:px-4 md:px-6 max-w-7xl mx-auto overflow-x-hidden">
+    <div className="w-full max-w-7xl mx-auto space-y-4 sm:space-y-6 px-3 sm:px-4 md:px-6">
       {/* Header */}
       <div className="glass-strong rounded-xl p-4 sm:p-6 border border-neon-cyan/20">
         <div className="flex items-center justify-between">

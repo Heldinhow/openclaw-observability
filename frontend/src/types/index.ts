@@ -132,3 +132,7 @@ export interface ZenStatus {
   configured: boolean;
   hasApiKey: boolean;
 }
+
+// ============ Subagent Types ============
+
+export * from './subagent';
