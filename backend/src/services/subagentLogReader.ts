@@ -4,7 +4,7 @@
  */
 
 import { createReadStream } from 'fs';
-import { readdir, stat } from 'fs/promises';
+import { readdir, stat, readFile } from 'fs/promises';
 import path from 'path';
 import { createInterface } from 'readline';
 import { logger } from '../logger.js';
@@ -112,16 +112,38 @@ export async function readSubagentHistory(options: {
 
 /**
  * Read detailed subagent information including logs
+ * Reads from both subagent log files and parent session files
  */
 export async function readSubagentDetail(subagentId: string): Promise<SubagentDetail | null> {
   try {
     const logFiles = await getAllLogFiles();
+    logger.debug({ subagentId, logFileCount: logFiles.length }, 'Reading subagent detail');
+    
     let subagent: Subagent | null = null;
     const logs: LogEntry[] = [];
     let parameters: Record<string, unknown> | null = null;
     let results: Record<string, unknown> | null = null;
     let errorMessage: string | null = null;
+    let errorStack: string | null = null;
+    let model: string | null = null;
+    let summary: string | null = null;
+    let annotations: string | null = null;
+    let projectPath: string | null = null;
+    let parentSessionId: string | null = null;
     
+    // First, try to read from session files to get model, summary, etc.
+    const sessionData = await readSubagentFromSessions(subagentId);
+    logger.debug({ subagentId, sessionData }, 'Session data from parent sessions');
+    
+    if (sessionData) {
+      model = sessionData.model || null;
+      summary = sessionData.summary || null;
+      annotations = sessionData.annotations || null;
+      projectPath = sessionData.projectPath || null;
+      parentSessionId = sessionData.parentSessionId || null;
+    }
+    
+    // Also read from log files for any additional info
     for (const logFile of logFiles) {
       const entries = await readLogFile(logFile);
       
@@ -131,15 +153,39 @@ export async function readSubagentDetail(subagentId: string): Promise<SubagentDe
         if (entry.type === 'subagent_start') {
           subagent = parseSubagentFromEntry(entry);
           parameters = (entry.data.parameters as Record<string, unknown>) || null;
+          if (!projectPath) projectPath = (entry.data.projectPath as string) || null;
+          if (!annotations) annotations = (entry.data.annotations as string) || null;
         } else if (entry.type === 'subagent_end') {
           if (!subagent) {
             subagent = parseSubagentFromEntry(entry);
           }
           results = (entry.data.results as Record<string, unknown>) || null;
           errorMessage = (entry.data.errorMessage as string) || null;
+          errorStack = (entry.data.errorStack as string) || null;
+          if (!summary) summary = (entry.data.summary as string) || null;
         } else if (entry.type === 'subagent_log') {
           const logEntry = parseLogEntry(entry.data);
           if (logEntry) logs.push(logEntry);
+          
+          // Extract model from message objects if present
+          if (entry.data.model && typeof entry.data.model === 'string') {
+            model = entry.data.model;
+          }
+          
+          // Extract summary from tool results if present
+          if (entry.data.summary && typeof entry.data.summary === 'string' && !summary) {
+            summary = entry.data.summary;
+          }
+          
+          // Extract annotations from log data if present
+          if (entry.data.annotations && typeof entry.data.annotations === 'string' && !annotations) {
+            annotations = entry.data.annotations;
+          }
+          
+          // Extract error stack from error data if present
+          if (entry.data.error && typeof entry.data.error === 'string' && !errorStack) {
+            errorStack = entry.data.error;
+          }
         }
       }
       
@@ -155,11 +201,102 @@ export async function readSubagentDetail(subagentId: string): Promise<SubagentDe
       parameters,
       results,
       errorMessage,
+      errorStack,
+      model: model || 'default',
+      summary,
+      annotations,
+      projectPath,
+      parentSessionId: sessionData?.parentSessionId || null,
     };
   } catch (error) {
     logger.error({ error, subagentId }, 'Failed to read subagent detail');
     return null;
   }
+}
+
+/**
+ * Read subagent data from session files (parent session that spawned it)
+ * Optimized for performance - stops at first match
+ */
+async function readSubagentFromSessions(subagentId: string): Promise<{
+  model?: string;
+  summary?: string;
+  annotations?: string;
+  projectPath?: string;
+  parentSessionId?: string;
+} | null> {
+  const sessionDir = '/root/.openclaw/agents/main/sessions';
+  
+  try {
+    const files = await fs.readdir(sessionDir);
+    const startTime = Date.now();
+    let filesChecked = 0;
+    
+    for (const file of files) {
+      if (!file.endsWith('.jsonl')) continue;
+      
+      const filePath = path.join(sessionDir, file);
+      filesChecked++;
+      
+      try {
+        const content = await fs.readFile(filePath, 'utf-8');
+        const lines = content.trim().split('\n').filter(Boolean);
+        
+        for (const line of lines) {
+          try {
+            const parsed = JSON.parse(line);
+            
+            // Look for sessions_spawn tool calls with this subagent
+            if (parsed.type === 'message' && parsed.message?.toolName === 'sessions_spawn') {
+              const details = parsed.message.details;
+              if (details?.childSessionKey?.includes(subagentId)) {
+                const args = parsed.message?.content?.[0]?.text || '';
+                const parentSessionId = parsed.sessionId || parsed.parentId;
+                
+                let taskSummary = null;
+                try {
+                  const parsedArgs = JSON.parse(args);
+                  taskSummary = parsedArgs.task?.substring(0, 500);
+                } catch {
+                  taskSummary = args.substring(0, 500);
+                }
+                
+                logger.debug({ 
+                  subagentId, 
+                  filesChecked, 
+                  duration: Date.now() - startTime,
+                  parentSessionId 
+                }, 'Found subagent in session files');
+                
+                return {
+                  model: details.modelApplied === true ? 'default' : (details.modelApplied || null),
+                  projectPath: null,
+                  summary: taskSummary,
+                  parentSessionId: parentSessionId || null,
+                };
+              }
+            }
+          } catch (e) {
+            logger.debug({ error: e?.message, file }, 'Error parsing line');
+            continue;
+          }
+        }
+      } catch (e) {
+        logger.debug({ error: e?.message, file: filePath }, 'Error reading file');
+        continue;
+      }
+      
+      // Timeout after 5 seconds to avoid blocking
+      if (Date.now() - startTime > 5000) {
+        logger.debug({ subagentId, filesChecked }, 'Timeout reading session files');
+        break;
+      }
+    }
+  } catch (error) {
+    logger.error({ error: error?.message, subagentId }, 'Failed to read subagent from sessions');
+  }
+  
+  return null;
 }
 
 /**

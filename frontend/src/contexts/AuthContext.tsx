@@ -1,5 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { login, logout, validateToken, getUsername } from '../services/api.js';
+import { createContext, useContext, useState, type ReactNode } from 'react';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -12,32 +11,17 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [username, setUsername] = useState<string | null>(null);
+  // Auth always enabled - no login required
+  const [isAuthenticated] = useState(true);
+  const [isLoading] = useState(false);
+  const [username] = useState<string | null>('admin');
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      const valid = await validateToken();
-      setIsAuthenticated(valid);
-      if (valid) {
-        setUsername(getUsername());
-      }
-      setIsLoading(false);
-    };
-    checkAuth();
-  }, []);
-
-  const handleLogin = async (user: string, pass: string) => {
-    await login(user, pass);
-    setIsAuthenticated(true);
-    setUsername(getUsername());
+  const handleLogin = async (_user: string, _pass: string) => {
+    // No-op - already authenticated
   };
 
   const handleLogout = () => {
-    logout();
-    setIsAuthenticated(false);
-    setUsername(null);
+    // No-op - always authenticated
   };
 
   return (

@@ -19,25 +19,7 @@ export const api = axios.create({
   withCredentials: false,
 });
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('auth_token');
-  if (token && config.headers) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('auth_username');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
-);
+// No auth required - interceptors removed
 
 export interface LoginResponse {
   token: string;
@@ -49,36 +31,25 @@ export interface ValidateResponse {
   username?: string;
 }
 
-export async function login(username: string, password: string): Promise<string> {
-  const { data } = await api.post<LoginResponse>('/api/auth/login', { username, password });
-  localStorage.setItem('auth_token', data.token);
-  localStorage.setItem('auth_username', data.username);
-  return data.token;
+// Keep functions for compatibility but they do nothing
+export async function login(_username: string, _password: string): Promise<string> {
+  return 'no-auth';
 }
 
 export function logout(): void {
-  localStorage.removeItem('auth_token');
-  localStorage.removeItem('auth_username');
+  // No-op
 }
 
 export function getToken(): string | null {
-  return localStorage.getItem('auth_token');
+  return 'no-auth';
 }
 
 export function getUsername(): string | null {
-  return localStorage.getItem('auth_username');
+  return 'admin';
 }
 
 export async function validateToken(): Promise<boolean> {
-  const token = getToken();
-  if (!token) return false;
-
-  try {
-    const { data } = await api.post<ValidateResponse>('/api/auth/validate', {});
-    return data.valid;
-  } catch {
-    return false;
-  }
+  return true;
 }
 
 export async function getSessions(filters?: {

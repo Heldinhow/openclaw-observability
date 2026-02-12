@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useRunningSubagents, useSubagentHistory, useRefreshSubagentCache } from '../hooks/useSubagents';
+import { SubagentDetailModal } from './SubagentDetailModal';
 import type { SubagentFilters, ViewMode, Subagent } from '../types';
 
 export function SubagentsTab() {
   const [viewMode, setViewMode] = useState<ViewMode>('running');
   const [filters, setFilters] = useState<SubagentFilters>({});
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedSubagentId, setSelectedSubagentId] = useState<string | null>(null);
 
   const { data: runningData, isLoading: isLoadingRunning, error: runningError } = 
     useRunningSubagents({ search: searchQuery || undefined });
@@ -166,16 +168,25 @@ export function SubagentsTab() {
       {!isLoading && !error && (
         <div className="space-y-4">
           {viewMode === 'running' ? (
-            <RunningSubagentsList subagents={runningSubagents} />
+            <RunningSubagentsList subagents={runningSubagents} onSubagentClick={setSelectedSubagentId} />
           ) : (
             <SubagentHistoryList 
               subagents={historySubagents}
               pagination={historyData?.pagination}
               filters={filters}
               onFilterChange={setFilters}
+              onSubagentClick={setSelectedSubagentId}
             />
           )}
         </div>
+      )}
+
+      {/* Subagent Detail Modal */}
+      {selectedSubagentId && (
+        <SubagentDetailModal
+          subagentId={selectedSubagentId}
+          onClose={() => setSelectedSubagentId(null)}
+        />
       )}
     </div>
   );
@@ -254,7 +265,7 @@ function TabButton({
 }
 
 // Running Subagents List
-function RunningSubagentsList({ subagents }: { subagents: Subagent[] }) {
+function RunningSubagentsList({ subagents, onSubagentClick }: { subagents: Subagent[]; onSubagentClick: (id: string) => void }) {
   if (subagents.length === 0) {
     return (
       <div className="glass-card rounded-2xl p-16 text-center">
@@ -272,7 +283,7 @@ function RunningSubagentsList({ subagents }: { subagents: Subagent[] }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
       {subagents.map((subagent, index) => (
-        <SubagentCard key={subagent.id} subagent={subagent} index={index} />
+        <SubagentCard key={subagent.id} subagent={subagent} index={index} onClick={onSubagentClick} />
       ))}
     </div>
   );
@@ -283,12 +294,14 @@ function SubagentHistoryList({
   subagents, 
   pagination,
   filters,
-  onFilterChange 
+  onFilterChange,
+  onSubagentClick,
 }: { 
   subagents: Subagent[];
   pagination?: { total: number; hasMore: boolean };
   filters: SubagentFilters;
   onFilterChange: (filters: SubagentFilters) => void;
+  onSubagentClick: (id: string) => void;
 }) {
   if (subagents.length === 0) {
     return (
@@ -337,7 +350,7 @@ function SubagentHistoryList({
       {/* List */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {subagents.map((subagent, index) => (
-          <SubagentCard key={subagent.id} subagent={subagent} index={index} />
+          <SubagentCard key={subagent.id} subagent={subagent} index={index} onClick={onSubagentClick} />
         ))}
       </div>
 
@@ -357,7 +370,7 @@ function SubagentHistoryList({
 }
 
 // Subagent Card Component
-function SubagentCard({ subagent, index }: { subagent: Subagent; index: number }) {
+function SubagentCard({ subagent, index, onClick }: { subagent: Subagent; index: number; onClick: (id: string) => void }) {
   const statusConfig = {
     idle: {
       bg: 'bg-slate-500/10',
@@ -424,6 +437,10 @@ function SubagentCard({ subagent, index }: { subagent: Subagent; index: number }
                  hover:scale-[1.02] transition-all duration-300 cursor-pointer
                  touch-manipulation active:scale-95 md:active:scale-100"
       style={{ animationDelay: `${index * 50}ms` }}
+      onClick={() => onClick(subagent.id)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick(subagent.id); }}
     >
       {/* Header */}
       <div className="flex items-start justify-between gap-3 mb-3">

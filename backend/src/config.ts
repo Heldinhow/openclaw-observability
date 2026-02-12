@@ -1,5 +1,4 @@
 import dotenv from 'dotenv';
-import path from 'path';
 
 dotenv.config();
 
@@ -20,7 +19,9 @@ export const config = {
     path: process.env.STORAGE_PATH || '/root/.local/share/opencode/storage',
   },
   projects: {
-    scanPath: process.env.PROJECTS_SCAN_PATH || path.resolve(__dirname, '../../projects'),
+    // Scan the main OpenClaw workspace projects directory
+    // NOT the openclaw-observability subdirectory
+    scanPath: process.env.PROJECTS_SCAN_PATH || '/root/.openclaw/workspace/projects',
   },
   cache: {
     ttlSeconds: parseInt(process.env.CACHE_TTL_SECONDS || '300', 10),

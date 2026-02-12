@@ -31,10 +31,16 @@ export interface SubagentDetail extends Subagent {
   parameters?: Record<string, unknown> | null;
   results?: Record<string, unknown> | null;
   errorMessage?: string | null;
+  errorStack?: string | null;
   resourceUsage?: {
     cpuPercent?: number;
     memoryMB?: number;
   } | null;
+  model?: string | null;
+  summary?: string | null;
+  annotations?: string | null;
+  projectPath?: string | null;
+  parentSessionId?: string | null;
 }
 
 export interface SubagentExecutionRecord {

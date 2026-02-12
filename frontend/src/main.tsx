@@ -6,7 +6,6 @@ import * as Sentry from '@sentry/react'
 import './index.css'
 import { Dashboard } from './pages/Dashboard.tsx'
 import { AuthProvider } from './contexts/AuthContext.js'
-import { ProtectedRoute } from './components/ProtectedRoute.js'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -37,9 +36,7 @@ createRoot(document.getElementById('root')!).render(
       <BrowserRouter>
         <AuthProvider>
           <SentryErrorBoundary fallback={<p>An error has occurred</p>}>
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
+            <Dashboard />
           </SentryErrorBoundary>
         </AuthProvider>
       </BrowserRouter>

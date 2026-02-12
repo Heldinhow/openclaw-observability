@@ -53,6 +53,12 @@ export const config = {
     username: parsed.data.AUTH_USERNAME,
     password: parsed.data.AUTH_PASSWORD,
   },
+  projects: {
+    scanPath: process.env.PROJECTS_SCAN_PATH || '/root/.openclaw/workspace',
+  },
+  storage: {
+    path: process.env.STORAGE_PATH || '/root/.local/share/opencode/storage',
+  },
   subagent: {
     logPath: parsed.data.SUBAGENT_LOG_PATH,
     retentionDays: parseInt(parsed.data.SUBAGENT_RETENTION_DAYS, 10),

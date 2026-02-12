@@ -1,4 +1,4 @@
-import Tail from 'tail';
+import { Tail } from 'tail';
 import pino from 'pino';
 import { LogEntry } from '../types/log.types';
 import { LogParser } from './LogParser';

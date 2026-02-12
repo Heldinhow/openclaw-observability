@@ -6,14 +6,12 @@ import { isRedisConnected } from '../services/redis.js';
 import { logger } from '../logger.js';
 import { Message, SessionFilters, SessionDetailResponse, Project, HealthResponse } from '../types/index.js';
 import { config } from '../config.js';
-import { authRouter } from '../routes/auth.js';
-import { authMiddleware } from '../middleware/auth.js';
 
 export const router = Router();
 
-router.use('/auth', authRouter);
+// Auth routes removed - dashboard is now public
 
-router.use(authMiddleware);
+
 
 router.get('/sessions', async (req: Request, res: Response) => {
   try {
@@ -187,6 +185,14 @@ async function mountLogsRoutes() {
       logFilePath: process.env.LOG_FILE_PATH || `/tmp/openclaw/openclaw-${new Date().toISOString().split('T')[0]}.log`,
       sseManager,
     });
+
+    // Start the log streamer
+    try {
+      logStreamer.start();
+      logger.info('LogStreamer started successfully');
+    } catch (error) {
+      logger.warn({ error }, 'Failed to start LogStreamer');
+    }
 
     let logCache: import('../services/LogCache.js').LogCache | undefined;
 

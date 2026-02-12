@@ -10,7 +10,7 @@ export default defineConfig({
     allowedHosts: ['srv1296895.hstgr.cloud'],
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:3001',
         changeOrigin: true,
         secure: false
       }
